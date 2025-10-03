@@ -1,0 +1,7 @@
+{
+  "name": "Stone River Agent Portal finalafter",
+  "description": "A web application for Stone River Funeral Services agents and administrators to manage customer registrations, policy adjustments, and payments.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

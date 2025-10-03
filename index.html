@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stone River Agent Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+            colors: {
+              'brand-pink': '#d63384',
+              'brand-light-pink': '#e063a4',
+              'brand-gray': '#6c757d',
+              'brand-bg': '#f8f9fa',
+              'brand-surface': '#ffffff',
+              'brand-border': '#dee2e6',
+              'brand-text-primary': '#212529',
+              'brand-text-secondary': '#6c757d',
+            },
+          },
+        },
+      }
+    </script>
+    <style>
+        body {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Simple stylish scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #b3b3b3;
+        }
+    </style>
+</head>
+<body class="bg-brand-bg">
+    <div id="root"></div>
+    <script type="importmap">
+    {
+      "imports": {
+        "react-dom/": "https://aistudiocdn.com/react-dom@19.2.0/",
+        "react-router-dom": "https://aistudiocdn.com/react-router-dom@7.9.3",
+        "react/": "https://aistudiocdn.com/react@19.2.0/",
+        "react": "https://aistudiocdn.com/react@19.2.0",
+        "idb": "https://aistudiocdn.com/idb@8.0.3",
+        "xlsx": "https://aistudiocdn.com/xlsx@0.18.5",
+        "@faker-js/faker": "https://aistudiocdn.com/@faker-js/faker@10.0.0"
+      }
+    }
+    </script>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>
