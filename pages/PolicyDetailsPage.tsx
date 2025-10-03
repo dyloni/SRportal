@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useData } from '../../contexts/DataContext';
-import Card from '../../components/ui/Card';
-import Button from '../../components/ui/Button';
-import PolicyStatusBadge from '../../components/ui/PolicyStatusBadge';
-import { getEffectivePolicyStatus, getPaymentHistory, PaymentHistoryItem } from '../../utils/statusHelpers';
-import { calculateOutstandingBalance, getParticipantSuffix } from '../../utils/policyHelpers';
-import ParticipantSuffix from '../../components/ui/ParticipantSuffix';
-import MakePaymentModal from '../../components/modals/MakePaymentModal';
-import EditCustomerModal from '../../components/modals/EditCustomerModal';
-import AddDependentModal from '../../components/modals/AddDependentModal';
-import PolicyAdjustmentModal from '../../components/modals/PolicyAdjustmentModal';
-import ReceiptViewerModal from '../../components/modals/ReceiptViewerModal';
-import { MedicalPackage, CashBackAddon } from '../../types';
+import { useData } from '../contexts/DataContext';
+import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import PolicyStatusBadge from '../components/ui/PolicyStatusBadge';
+import { getEffectivePolicyStatus, getPaymentHistory, PaymentHistoryItem } from '../utils/statusHelpers';
+import { calculateOutstandingBalance, getParticipantSuffix } from '../utils/policyHelpers';
+import ParticipantSuffix from '../components/ui/ParticipantSuffix';
+import MakePaymentModal from '../components/modals/MakePaymentModal';
+import EditCustomerModal from '../components/modals/EditCustomerModal';
+import AddDependentModal from '../components/modals/AddDependentModal';
+import PolicyAdjustmentModal from '../components/modals/PolicyAdjustmentModal';
+import ReceiptViewerModal from '../components/modals/ReceiptViewerModal';
+import { MedicalPackage, CashBackAddon } from '../types';
 
 const DetailItem: React.FC<{ label: string, value: React.ReactNode }> = ({ label, value }) => (
     <div>
