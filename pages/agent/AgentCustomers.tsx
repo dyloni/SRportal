@@ -6,6 +6,7 @@ import Card from '../../components/ui/Card';
 import { useNavigate } from 'react-router-dom';
 import PolicyStatusBadge from '../../components/ui/PolicyStatusBadge';
 import { getEffectivePolicyStatus } from '../../utils/statusHelpers';
+import { calculateOutstandingBalance } from '../../utils/policyHelpers';
 
 const AgentCustomers: React.FC = () => {
     const { user } = useAuth();
@@ -49,23 +50,42 @@ const AgentCustomers: React.FC = () => {
                             <tr>
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider">Name</th>
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider">Policy Number</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider">Phone</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider">Package</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider">Participants</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider">Premium</th>
+                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider">Balance Due</th>
                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-brand-text-secondary uppercase tracking-wider">Status</th>
                                 <th scope="col" className="relative px-6 py-3"><span className="sr-only">View</span></th>
                             </tr>
                         </thead>
                         <tbody className="bg-brand-surface divide-y divide-brand-border">
-                            {filteredCustomers.map((customer: Customer) => (
-                                <tr key={customer.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/customers/${customer.id}`)}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-brand-text-primary">{`${customer.firstName} ${customer.surname}`}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-text-secondary">{customer.policyNumber}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                        <PolicyStatusBadge status={getEffectivePolicyStatus(customer, state.requests)} />
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                        <span className="text-brand-pink hover:text-brand-light-pink">View</span>
-                                    </td>
-                                </tr>
-                            ))}
+                            {filteredCustomers.map((customer: Customer) => {
+                                const { balance, monthsDue } = calculateOutstandingBalance(customer, state.requests);
+                                return (
+                                    <tr key={customer.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/customers/${customer.id}`)}>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-brand-text-primary">{`${customer.firstName} ${customer.surname}`}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-text-secondary">{customer.policyNumber}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-text-secondary">{customer.phone}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-text-secondary">{customer.funeralPackage}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-text-secondary text-center">{customer.participants.length}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-text-secondary font-semibold">${customer.totalPremium.toFixed(2)}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                            {balance > 0 ? (
+                                                <span className="font-semibold text-red-600">${balance.toFixed(2)} ({monthsDue} mo{monthsDue !== 1 ? 's' : ''})</span>
+                                            ) : (
+                                                <span className="text-green-600 font-semibold">Paid Up</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                            <PolicyStatusBadge status={getEffectivePolicyStatus(customer, state.requests)} />
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <span className="text-brand-pink hover:text-brand-light-pink">View</span>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
