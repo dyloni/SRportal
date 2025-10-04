@@ -19,6 +19,7 @@ import AdminAgents from './pages/admin/AdminAgents';
 import AdminCustomers from './pages/admin/AdminCustomers';
 import AgentProfilePage from './pages/admin/AgentProfilePage';
 import AdminRequests from './pages/admin/AdminRequests';
+import AdminSales from './pages/admin/AdminSales';
 
 // Shared Pages
 import PolicyDetailsPage from './pages/PolicyDetailsPage';
@@ -66,6 +67,7 @@ const Main: React.FC = () => {
             <>
               <Route path="/" element={<Navigate to="/dashboard" />} />
               <Route path="/dashboard" element={<AdminDashboard />} />
+              <Route path="/sales" element={<AdminSales />} />
               <Route path="/agents" element={<AdminAgents />} />
               <Route path="/agents/:id" element={<AgentProfilePage />} />
               <Route path="/customers" element={<AdminCustomers />} />

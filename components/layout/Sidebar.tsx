@@ -20,6 +20,7 @@ const agentLinks = [
 
 const adminLinks = [
   { name: 'Dashboard', path: '/dashboard' },
+  { name: 'Sales Analytics', path: '/sales' },
   { name: 'Agents', path: '/agents' },
   { name: 'Customers', path: '/customers' },
   { name: 'Manage Requests', path: '/requests' },
