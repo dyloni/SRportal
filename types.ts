@@ -51,6 +51,13 @@ export enum RequestStatus {
     REJECTED = 'Rejected',
 }
 
+export enum ClaimStatus {
+    PENDING = 'Pending',
+    APPROVED = 'Approved',
+    REJECTED = 'Rejected',
+    PAID = 'Paid',
+}
+
 export enum PaymentMethod {
     CASH = 'Cash',
     ECOCASH = 'EcoCash',
@@ -129,6 +136,27 @@ export interface Customer {
     // Timestamps
     dateCreated: string;
     lastUpdated: string;
+}
+
+export interface Claim {
+    id: number;
+    customer_id: number;
+    policy_number: string;
+    customer_name: string;
+    deceased_name: string;
+    deceased_participant_id: number;
+    date_of_death: string;
+    claim_amount: number;
+    status: ClaimStatus;
+    filed_by: string;
+    filed_by_name: string;
+    filed_date: string;
+    approved_date?: string;
+    paid_date?: string;
+    notes?: string;
+    death_certificate_filename?: string;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface ChatMessage {

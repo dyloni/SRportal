@@ -12,6 +12,7 @@ import AgentCustomers from './pages/agent/AgentCustomers';
 import NewPolicyPage from './pages/agent/NewPolicyPage';
 import PaymentPage from './pages/agent/PaymentPage';
 import AgentRequests from './pages/agent/AgentRequests';
+import AgentClaims from './pages/agent/AgentClaims';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -20,6 +21,7 @@ import AdminCustomers from './pages/admin/AdminCustomers';
 import AgentProfilePage from './pages/admin/AgentProfilePage';
 import AdminRequests from './pages/admin/AdminRequests';
 import AdminSales from './pages/admin/AdminSales';
+import AdminClaims from './pages/admin/AdminClaims';
 
 // Shared Pages
 import PolicyDetailsPage from './pages/PolicyDetailsPage';
@@ -58,6 +60,7 @@ const Main: React.FC = () => {
               <Route path="/new-policy" element={<NewPolicyPage />} />
               <Route path="/payment" element={<PaymentPage />} />
               <Route path="/requests" element={<AgentRequests />} />
+              <Route path="/claims" element={<AgentClaims />} />
               <Route path="/messages" element={<MessagesPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="*" element={<Navigate to="/dashboard" />} />
@@ -73,6 +76,7 @@ const Main: React.FC = () => {
               <Route path="/customers" element={<AdminCustomers />} />
               <Route path="/customers/:id" element={<PolicyDetailsPage />} />
               <Route path="/requests" element={<AdminRequests />} />
+              <Route path="/claims" element={<AdminClaims />} />
               <Route path="/messages" element={<MessagesPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="*" element={<Navigate to="/dashboard" />} />
