@@ -8,6 +8,7 @@ interface ChatInterfaceProps {
     onSendMessage: (text: string) => void;
     onTyping?: () => void;
     isPartnerTyping?: boolean;
+    showHeader?: boolean;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
@@ -16,7 +17,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     currentUserId,
     onSendMessage,
     onTyping,
-    isPartnerTyping = false
+    isPartnerTyping = false,
+    showHeader = true
 }) => {
     const [input, setInput] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -43,12 +45,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     return (
         <>
-            <div className="p-4 border-b border-brand-border bg-brand-surface">
-                <h3 className="text-lg font-bold text-brand-text-primary">Chat with {chatPartnerName}</h3>
-                {isPartnerTyping && (
-                    <p className="text-sm text-green-600 italic animate-pulse">typing...</p>
-                )}
-            </div>
+            {showHeader && (
+                <div className="p-4 border-b border-brand-border bg-brand-surface">
+                    <h3 className="text-lg font-bold text-brand-text-primary">Chat with {chatPartnerName}</h3>
+                    {isPartnerTyping && (
+                        <p className="text-sm text-green-600 italic animate-pulse">typing...</p>
+                    )}
+                </div>
+            )}
             <div className="flex-1 p-4 overflow-y-auto bg-brand-bg space-y-4">
                 {messages.map(msg => (
                     <div key={msg.id} className={`flex items-end gap-2 ${msg.senderId === currentUserId ? 'justify-end' : 'justify-start'}`}>

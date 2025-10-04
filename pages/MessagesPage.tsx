@@ -137,10 +137,13 @@ const MessagesPage: React.FC = () => {
 
     return (
         <div>
-            <h2 className="text-3xl font-extrabold text-brand-text-primary mb-6">Messages</h2>
+            <h2 className="text-3xl font-extrabold text-brand-text-primary mb-6 md:block hidden">Messages</h2>
             <Card className="p-0 sm:p-0">
-                <div className="flex h-[75vh] rounded-xl overflow-hidden">
-                    <div className="w-full md:w-1/3 border-r border-brand-border bg-brand-surface overflow-y-auto">
+                <div className="flex h-[75vh] md:h-[75vh] h-[calc(100vh-8rem)] rounded-xl overflow-hidden">
+                    <div className={`w-full md:w-1/3 border-r border-brand-border bg-brand-surface overflow-y-auto ${activeChatPartnerId && 'hidden md:block'}`}>
+                        <div className="md:hidden p-4 border-b border-brand-border bg-brand-surface">
+                            <h2 className="text-2xl font-extrabold text-brand-text-primary">Messages</h2>
+                        </div>
                         {conversationList.map(partner => {
                             const partnerName = `${partner.firstName} ${partner.surname}`.trim();
                             const lastMessage = [...state.messages]
@@ -176,16 +179,35 @@ const MessagesPage: React.FC = () => {
                         })}
                     </div>
 
-                    <div className="w-full md:w-2/3 flex-col hidden md:flex">
+                    <div className={`w-full md:w-2/3 flex-col ${activeChatPartnerId ? 'flex' : 'hidden md:flex'}`}>
                         {activeChatPartner ? (
-                           <ChatInterface
-                                chatPartnerName={activeChatPartnerName}
-                                messages={activeConversationMessages}
-                                currentUserId={currentUserId}
-                                onSendMessage={handleSendMessage}
-                                onTyping={handleTyping}
-                                isPartnerTyping={isPartnerTyping}
-                           />
+                           <>
+                                <div className="md:hidden flex items-center p-4 border-b border-brand-border bg-brand-surface">
+                                    <button
+                                        onClick={() => setActiveChatPartnerId(null)}
+                                        className="mr-3 text-brand-text-secondary hover:text-brand-text-primary"
+                                    >
+                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                        </svg>
+                                    </button>
+                                    <div className="flex-1">
+                                        <h3 className="text-lg font-bold text-brand-text-primary">{activeChatPartnerName}</h3>
+                                        {isPartnerTyping && (
+                                            <p className="text-sm text-green-600 italic animate-pulse">typing...</p>
+                                        )}
+                                    </div>
+                                </div>
+                                <ChatInterface
+                                    chatPartnerName={activeChatPartnerName}
+                                    messages={activeConversationMessages}
+                                    currentUserId={currentUserId}
+                                    onSendMessage={handleSendMessage}
+                                    onTyping={handleTyping}
+                                    isPartnerTyping={isPartnerTyping}
+                                    showHeader={false}
+                                />
+                           </>
                         ) : (
                             <div className="flex-1 flex items-center justify-center text-brand-text-secondary">
                                 <p>Select a conversation to start messaging.</p>

@@ -168,6 +168,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [state, internalDispatch] = useReducer(dataReducer, initialState);
     const isOnline = useOnlineStatus();
     const isInitialized = useRef(false);
+    const stateRef = useRef(state);
+
+    useEffect(() => {
+        stateRef.current = state;
+    }, [state]);
 
     // Give this tab a unique ID to prevent it from acting on its own messages
     const tabId = useRef(Date.now() + Math.random()).current;
@@ -223,9 +228,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 internalDispatch({
                     type: 'SET_INITIAL_DATA',
                     payload: {
-                        customers: state.customers.map(c => c.id === customer.id ? customer : c),
-                        requests: state.requests,
-                        messages: state.messages,
+                        customers: stateRef.current.customers.map(c => c.id === customer.id ? customer : c),
+                        requests: stateRef.current.requests,
+                        messages: stateRef.current.messages,
                     },
                 });
             },
@@ -234,9 +239,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 internalDispatch({
                     type: 'SET_INITIAL_DATA',
                     payload: {
-                        customers: state.customers.filter(c => c.id !== id),
-                        requests: state.requests,
-                        messages: state.messages,
+                        customers: stateRef.current.customers.filter(c => c.id !== id),
+                        requests: stateRef.current.requests,
+                        messages: stateRef.current.messages,
                     },
                 });
             }
@@ -262,9 +267,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 internalDispatch({
                     type: 'SET_INITIAL_DATA',
                     payload: {
-                        customers: state.customers,
-                        requests: state.requests.filter(r => r.id !== id),
-                        messages: state.messages,
+                        customers: stateRef.current.customers,
+                        requests: stateRef.current.requests.filter(r => r.id !== id),
+                        messages: stateRef.current.messages,
                     },
                 });
             }
@@ -283,9 +288,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 internalDispatch({
                     type: 'SET_INITIAL_DATA',
                     payload: {
-                        customers: state.customers,
-                        requests: state.requests,
-                        messages: state.messages.map(m => m.id === message.id ? message : m),
+                        customers: stateRef.current.customers,
+                        requests: stateRef.current.requests,
+                        messages: stateRef.current.messages.map(m => m.id === message.id ? message : m),
                     },
                 });
             },
@@ -294,9 +299,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 internalDispatch({
                     type: 'SET_INITIAL_DATA',
                     payload: {
-                        customers: state.customers,
-                        requests: state.requests,
-                        messages: state.messages.filter(m => m.id !== id),
+                        customers: stateRef.current.customers,
+                        requests: stateRef.current.requests,
+                        messages: stateRef.current.messages.filter(m => m.id !== id),
                     },
                 });
             }
