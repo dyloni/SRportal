@@ -1,7 +1,5 @@
-// FIX: Moved status-related helper functions here from other files to centralize logic.
-// FIX: Imported the AppRequest union type.
-import { Customer, AppRequest, PolicyStatus, RequestType, MakePaymentRequest, RequestStatus, PaymentMethod } from '../types';
-import { calculateOutstandingBalance } from './policyHelpers';
+import { Customer, PolicyStatus, PaymentMethod } from '../types';
+import { supabase } from './supabase';
 
 export interface PaymentHistoryItem {
     date: string;
@@ -12,46 +10,49 @@ export interface PaymentHistoryItem {
     receiptFilename?: string;
 }
 
-export const getPaymentHistory = (customer: Customer, requests: AppRequest[]): PaymentHistoryItem[] => {
-    const history: PaymentHistoryItem[] = [];
+export const getPaymentHistory = async (customer: Customer): Promise<PaymentHistoryItem[]> => {
+    const { data: payments } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('customer_id', customer.id)
+        .order('payment_date', { ascending: false });
 
-    // Find all payment-related requests for this customer
-    const paymentRequests = requests.filter(
-        (req): req is MakePaymentRequest => 'customerId' in req && req.customerId === customer.id && req.requestType === RequestType.MAKE_PAYMENT
-    );
-    
-    // Add payments to history
-    paymentRequests.forEach(req => {
-        history.push({
-            date: req.createdAt,
-            description: req.paymentType === 'Initial' ? 'Initial Policy Payment' : `Payment for ${req.paymentPeriod}`,
-            amount: req.paymentAmount,
-            status: req.status === RequestStatus.APPROVED ? 'Paid' : 'Pending',
-            paymentMethod: req.paymentMethod,
-            receiptFilename: req.receiptFilename
-        });
-    });
+    if (!payments) return [];
 
-    return history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return payments.map(payment => ({
+        date: payment.payment_date,
+        description: `Payment for ${payment.payment_period}`,
+        amount: parseFloat(payment.payment_amount),
+        status: 'Paid' as const,
+        paymentMethod: payment.payment_method as PaymentMethod,
+        receiptFilename: payment.receipt_filename,
+    }));
 };
 
-export const getEffectivePolicyStatus = (customer: Customer, requests: AppRequest[]): PolicyStatus => {
-    // These are manual, terminal states. Don't override them.
+export const getEffectivePolicyStatus = async (customer: Customer): Promise<PolicyStatus> => {
     if (customer.status === PolicyStatus.CANCELLED) {
         return customer.status;
     }
 
-    const { monthsDue } = calculateOutstandingBalance(customer, requests);
+    const { data: payments } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('customer_id', customer.id);
+
+    const paymentCount = payments?.length || 0;
+    const policyStartDate = new Date(customer.inceptionDate);
+    const today = new Date();
+    const monthsSinceStart = ((today.getFullYear() - policyStartDate.getFullYear()) * 12) + (today.getMonth() - policyStartDate.getMonth()) + 1;
+    const monthsDue = monthsSinceStart - paymentCount;
 
     if (monthsDue >= 2) {
-        return PolicyStatus.INACTIVE; // Deactivated after 2 months
+        return PolicyStatus.INACTIVE;
     }
-    
+
     if (monthsDue === 1) {
         return PolicyStatus.OVERDUE;
     }
 
-    // If no months are due, it should be active, unless an admin manually set it to inactive.
     if (customer.status === PolicyStatus.INACTIVE) {
         return PolicyStatus.INACTIVE;
     }

@@ -1,18 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import PolicyStatusBadge from '../components/ui/PolicyStatusBadge';
 import { getEffectivePolicyStatus, getPaymentHistory, PaymentHistoryItem } from '../utils/statusHelpers';
-import { calculateOutstandingBalance, getParticipantSuffix } from '../utils/policyHelpers';
+import { getParticipantSuffix } from '../utils/policyHelpers';
 import ParticipantSuffix from '../components/ui/ParticipantSuffix';
 import MakePaymentModal from '../components/modals/MakePaymentModal';
 import EditCustomerModal from '../components/modals/EditCustomerModal';
 import AddDependentModal from '../components/modals/AddDependentModal';
 import PolicyAdjustmentModal from '../components/modals/PolicyAdjustmentModal';
 import ReceiptViewerModal from '../components/modals/ReceiptViewerModal';
-import { MedicalPackage, CashBackAddon } from '../types';
+import { MedicalPackage, CashBackAddon, PolicyStatus } from '../types';
+import { supabase } from '../utils/supabase';
 
 const DetailItem: React.FC<{ label: string, value: React.ReactNode }> = ({ label, value }) => (
     <div>
@@ -27,15 +28,49 @@ const PolicyDetailsPage: React.FC = () => {
     const navigate = useNavigate();
     const [modal, setModal] = useState<string | null>(null);
     const [receiptFile, setReceiptFile] = useState<string | null>(null);
+    const [status, setStatus] = useState<PolicyStatus>(PolicyStatus.ACTIVE);
+    const [balance, setBalance] = useState<{ balance: number; monthsDue: number }>({ balance: 0, monthsDue: 0 });
+    const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryItem[]>([]);
 
     const customer = state.customers.find(c => c.id === Number(id));
+
+    useEffect(() => {
+        if (customer) {
+            loadCustomerData();
+        }
+    }, [customer?.id]);
+
+    const loadCustomerData = async () => {
+        if (!customer) return;
+
+        const effectiveStatus = await getEffectivePolicyStatus(customer);
+        setStatus(effectiveStatus);
+
+        const history = await getPaymentHistory(customer);
+        setPaymentHistory(history);
+
+        const { data: payments } = await supabase
+            .from('payments')
+            .select('*')
+            .eq('customer_id', customer.id);
+
+        const paymentCount = payments?.length || 0;
+        const policyStartDate = new Date(customer.inceptionDate);
+        const today = new Date();
+        const monthsSinceStart = ((today.getFullYear() - policyStartDate.getFullYear()) * 12) + (today.getMonth() - policyStartDate.getMonth()) + 1;
+        const monthsDue = monthsSinceStart - paymentCount;
+        const premium = customer.totalPremium;
+        const outstandingBalance = monthsDue > 0 ? monthsDue * premium : 0;
+
+        setBalance({
+            balance: outstandingBalance,
+            monthsDue: monthsDue > 0 ? monthsDue : 0,
+        });
+    };
 
     if (!customer) return <div className="text-center p-8">Customer not found. <Button onClick={() => navigate(-1)}>Go Back</Button></div>;
 
     const agent = state.agents.find(a => a.id === customer.assignedAgentId);
-    const status = getEffectivePolicyStatus(customer, state.requests);
-    const balance = calculateOutstandingBalance(customer, state.requests);
-    const paymentHistory = getPaymentHistory(customer, state.requests);
 
     return (
         <div className="space-y-6">

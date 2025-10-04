@@ -1,23 +1,52 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { Customer } from '../../types';
 import Card from '../../components/ui/Card';
 import { useNavigate } from 'react-router-dom';
 import PolicyStatusBadge from '../../components/ui/PolicyStatusBadge';
-import { getEffectivePolicyStatus } from '../../utils/statusHelpers';
-import { calculateOutstandingBalance } from '../../utils/policyHelpers';
+import { supabase } from '../../utils/supabase';
 
 const AgentCustomers: React.FC = () => {
     const { user } = useAuth();
     const { state } = useData();
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
+    const [customerBalances, setCustomerBalances] = useState<Record<number, { balance: number; monthsDue: number }>>({});
 
     const agentCustomers = useMemo(() => {
         if (!user) return [];
         return state.customers.filter(c => c.assignedAgentId === user.id);
     }, [state.customers, user]);
+
+    useEffect(() => {
+        loadBalances();
+    }, [agentCustomers]);
+
+    const loadBalances = async () => {
+        const balances: Record<number, { balance: number; monthsDue: number }> = {};
+
+        for (const customer of agentCustomers) {
+            const { data: payments } = await supabase
+                .from('payments')
+                .select('*')
+                .eq('customer_id', customer.id);
+
+            const paymentCount = payments?.length || 0;
+            const policyStartDate = new Date(customer.inceptionDate);
+            const today = new Date();
+            const monthsSinceStart = ((today.getFullYear() - policyStartDate.getFullYear()) * 12) + (today.getMonth() - policyStartDate.getMonth()) + 1;
+            const monthsDue = monthsSinceStart - paymentCount;
+            const outstandingBalance = monthsDue > 0 ? monthsDue * customer.totalPremium : 0;
+
+            balances[customer.id] = {
+                balance: outstandingBalance,
+                monthsDue: monthsDue > 0 ? monthsDue : 0,
+            };
+        }
+
+        setCustomerBalances(balances);
+    };
 
     const filteredCustomers = useMemo(() => {
         if (!searchTerm) return agentCustomers;
@@ -61,7 +90,7 @@ const AgentCustomers: React.FC = () => {
                         </thead>
                         <tbody className="bg-brand-surface divide-y divide-brand-border">
                             {filteredCustomers.map((customer: Customer) => {
-                                const { balance, monthsDue } = calculateOutstandingBalance(customer, state.requests);
+                                const customerBalance = customerBalances[customer.id] || { balance: 0, monthsDue: 0 };
                                 return (
                                     <tr key={customer.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/customers/${customer.id}`)}>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-brand-text-primary">{`${customer.firstName} ${customer.surname}`}</td>
@@ -71,14 +100,14 @@ const AgentCustomers: React.FC = () => {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-text-secondary text-center">{customer.participants.length}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-text-secondary font-semibold">${customer.totalPremium.toFixed(2)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                            {balance > 0 ? (
-                                                <span className="font-semibold text-red-600">${balance.toFixed(2)} ({monthsDue} mo{monthsDue !== 1 ? 's' : ''})</span>
+                                            {customerBalance.balance > 0 ? (
+                                                <span className="font-semibold text-red-600">${customerBalance.balance.toFixed(2)} ({customerBalance.monthsDue} mo{customerBalance.monthsDue !== 1 ? 's' : ''})</span>
                                             ) : (
                                                 <span className="text-green-600 font-semibold">Paid Up</span>
                                             )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                            <PolicyStatusBadge status={getEffectivePolicyStatus(customer, state.requests)} />
+                                            <PolicyStatusBadge status={customer.status} />
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <span className="text-brand-pink hover:text-brand-light-pink">View</span>

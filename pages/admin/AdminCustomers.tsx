@@ -4,7 +4,6 @@ import { Customer } from '../../types';
 import Card from '../../components/ui/Card';
 import { useNavigate } from 'react-router-dom';
 import PolicyStatusBadge from '../../components/ui/PolicyStatusBadge';
-import { getEffectivePolicyStatus } from '../../utils/statusHelpers';
 import Button from '../../components/ui/Button';
 import { exportCustomersToFile } from '../../utils/csvHelpers';
 import UploadCustomersModal from '../../components/modals/UploadCustomersModal';
@@ -73,7 +72,7 @@ const AdminCustomers: React.FC = () => {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-brand-text-primary">{`${customer.firstName} ${customer.surname}`}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-text-secondary">{customer.policyNumber}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                            <PolicyStatusBadge status={getEffectivePolicyStatus(customer, state.requests)} />
+                                            <PolicyStatusBadge status={customer.status} />
                                         </td>
                                          <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-text-secondary">{agent ? `${agent.firstName} ${agent.surname}` : 'N/A'}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

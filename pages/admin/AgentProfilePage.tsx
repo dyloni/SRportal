@@ -5,7 +5,6 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import PolicyStatusBadge from '../../components/ui/PolicyStatusBadge';
 import Badge from '../../components/ui/Badge';
-import { getEffectivePolicyStatus } from '../../utils/statusHelpers';
 import { MakePaymentRequest, RequestType } from '../../types';
 
 const AgentProfilePage: React.FC = () => {
@@ -51,7 +50,7 @@ const AgentProfilePage: React.FC = () => {
                             {assignedCustomers.map(customer => (
                                 <li key={customer.id} className="py-3 flex justify-between items-center cursor-pointer hover:bg-gray-50 px-2 -mx-2 rounded-md" onClick={() => navigate(`/customers/${customer.id}`)}>
                                     <span className="text-sm font-medium text-brand-text-primary">{`${customer.firstName} ${customer.surname}`}</span>
-                                    <PolicyStatusBadge status={getEffectivePolicyStatus(customer, state.requests)} />
+                                    <PolicyStatusBadge status={customer.status} />
                                 </li>
                             ))}
                         </ul>
