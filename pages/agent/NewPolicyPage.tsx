@@ -400,7 +400,7 @@ const NewPolicyPage: React.FC = () => {
                                         Remove
                                     </Button>
                                 </div>
-                                <input type="hidden" name="receiptFilename" value={formData.receiptFilename} required />
+                                <input type="hidden" name="receiptFilename" value={formData.receiptFilename} />
                             </div>
                         ) : (
                             <Button type="button" onClick={() => setShowReceiptCamera(true)} className="w-full">
@@ -421,7 +421,7 @@ const NewPolicyPage: React.FC = () => {
                                         Remove
                                     </Button>
                                 </div>
-                                <input type="hidden" name="idPhotoFilename" value={formData.idPhotoFilename} required />
+                                <input type="hidden" name="idPhotoFilename" value={formData.idPhotoFilename} />
                             </div>
                         ) : (
                             <Button type="button" onClick={() => setShowIdCamera(true)} className="w-full">
@@ -433,7 +433,7 @@ const NewPolicyPage: React.FC = () => {
             </Card>
 
             <div className="flex justify-end pt-4">
-                <Button type="submit" className="w-full md:w-auto" disabled={premiumComponents.totalPremium <= 0 || !idPhotoData || !receiptPhotoData}>
+                <Button type="submit" className="w-full md:w-auto" disabled={premiumComponents.totalPremium <= 0}>
                     Create Policy
                 </Button>
             </div>
