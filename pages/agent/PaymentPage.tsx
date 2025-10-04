@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { useData } from '../../contexts/DataContext';
 import { Customer, PaymentMethod, PolicyStatus } from '../../types';
-import { calculatePremium, calculateOutstandingBalance, getNextPaymentPeriod } from '../../utils/policyHelpers';
+import { calculatePremium } from '../../utils/policyHelpers';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../utils/supabase';
 
@@ -21,14 +21,16 @@ const FormSelect: React.FC<React.SelectHTMLAttributes<HTMLSelectElement>> = (pro
 
 const PaymentPage: React.FC = () => {
     const { user } = useAuth();
-    const { state, dispatchWithOffline } = useData();
+    const { state } = useData();
     const navigate = useNavigate();
-    
+
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [paymentAmount, setPaymentAmount] = useState('');
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
     const [receiptFilename, setReceiptFilename] = useState('');
+    const [balance, setBalance] = useState<{ balance: number; monthsDue: number } | null>(null);
+    const [nextPeriod, setNextPeriod] = useState<string>('');
 
     const filteredCustomers = useMemo(() => {
         if (!searchTerm) return [];
@@ -39,11 +41,32 @@ const PaymentPage: React.FC = () => {
         );
     }, [searchTerm, state.customers]);
 
-    const handleSelectCustomer = (customer: Customer) => {
+    const handleSelectCustomer = async (customer: Customer) => {
         setSelectedCustomer(customer);
         const premium = calculatePremium(customer);
         setPaymentAmount(premium.toFixed(2));
         setSearchTerm('');
+
+        const { data: payments } = await supabase
+            .from('payments')
+            .select('*')
+            .eq('customer_id', customer.id);
+
+        const paymentCount = payments?.length || 0;
+        const policyStartDate = new Date(customer.inceptionDate);
+        const today = new Date();
+        const monthsSinceStart = ((today.getFullYear() - policyStartDate.getFullYear()) * 12) + (today.getMonth() - policyStartDate.getMonth()) + 1;
+        const monthsDue = monthsSinceStart - paymentCount;
+        const outstandingBalance = monthsDue > 0 ? monthsDue * premium : 0;
+
+        setBalance({
+            balance: outstandingBalance,
+            monthsDue: monthsDue > 0 ? monthsDue : 0,
+        });
+
+        const nextPaymentDate = new Date(policyStartDate);
+        nextPaymentDate.setMonth(policyStartDate.getMonth() + paymentCount);
+        setNextPeriod(nextPaymentDate.toLocaleString('default', { month: 'long', year: 'numeric' }));
     };
     
     const handleSubmitPayment = async (e: React.FormEvent) => {
@@ -51,9 +74,43 @@ const PaymentPage: React.FC = () => {
         if (!selectedCustomer || !user) return;
 
         try {
-            const paymentPeriod = getNextPaymentPeriod(selectedCustomer, state.requests);
+            const { data: allPayments } = await supabase
+                .from('payments')
+                .select('*')
+                .eq('customer_id', selectedCustomer.id);
 
-            const { error } = await supabase
+            const paymentCount = allPayments?.length || 0;
+            const policyStartDate = new Date(selectedCustomer.inceptionDate);
+            const nextPaymentDate = new Date(policyStartDate);
+            nextPaymentDate.setMonth(policyStartDate.getMonth() + paymentCount);
+            const paymentPeriod = nextPaymentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+            const { data: maxIdData } = await supabase
+                .from('payments')
+                .select('id')
+                .order('id', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            const nextPaymentId = maxIdData ? maxIdData.id + 1 : 1;
+
+            const { error: paymentError } = await supabase
+                .from('payments')
+                .insert({
+                    id: nextPaymentId,
+                    customer_id: selectedCustomer.id,
+                    policy_number: selectedCustomer.policyNumber,
+                    payment_amount: parseFloat(paymentAmount),
+                    payment_method: paymentMethod,
+                    payment_period: paymentPeriod,
+                    receipt_filename: receiptFilename,
+                    recorded_by_agent_id: user.id,
+                    payment_date: new Date().toISOString(),
+                });
+
+            if (paymentError) throw paymentError;
+
+            const { error: updateError } = await supabase
                 .from('customers')
                 .update({
                     status: PolicyStatus.ACTIVE,
@@ -63,7 +120,7 @@ const PaymentPage: React.FC = () => {
                 })
                 .eq('id', selectedCustomer.id);
 
-            if (error) throw error;
+            if (updateError) throw updateError;
 
             alert('Payment recorded successfully! Customer status updated to Active.');
             navigate(`/customers`);
@@ -73,8 +130,6 @@ const PaymentPage: React.FC = () => {
         }
     };
 
-    const balance = selectedCustomer ? calculateOutstandingBalance(selectedCustomer, state.requests) : null;
-    
     return (
         <div>
             <h2 className="text-3xl font-extrabold text-brand-text-primary mb-6">Make a Payment</h2>
@@ -107,8 +162,8 @@ const PaymentPage: React.FC = () => {
                          </div>
                          <div className="p-4 bg-gray-100 rounded-lg mb-6 space-y-2 text-center sm:text-left text-brand-text-secondary">
                             <p><strong>Policy Premium:</strong> ${calculatePremium(selectedCustomer).toFixed(2)} / month</p>
-                            {balance && <p><strong>Outstanding Balance:</strong> ${balance.balance.toFixed(2)} ({balance.cappedMonths} months)</p>}
-                            <p><strong>Next Payment Period:</strong> {getNextPaymentPeriod(selectedCustomer, state.requests)}</p>
+                            {balance && balance.monthsDue > 0 && <p><strong>Outstanding Balance:</strong> ${balance.balance.toFixed(2)} ({balance.monthsDue} months)</p>}
+                            <p><strong>Next Payment Period:</strong> {nextPeriod}</p>
                          </div>
                          <form onSubmit={handleSubmitPayment} className="space-y-4">
                              <div>
