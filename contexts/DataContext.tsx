@@ -5,6 +5,7 @@ import { AGENTS, ADMINS, CUSTOMERS, REQUESTS, MESSAGES } from '../constants';
 import * as db from '../utils/db';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { calculatePremiumComponents } from '../utils/policyHelpers';
+import { supabaseService } from '../services/supabaseService';
 
 interface AppState {
     agents: Agent[];
@@ -166,15 +167,149 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [state, internalDispatch] = useReducer(dataReducer, initialState);
     const isOnline = useOnlineStatus();
+    const isInitialized = useRef(false);
 
     // Give this tab a unique ID to prevent it from acting on its own messages
     const tabId = useRef(Date.now() + Math.random()).current;
 
     useEffect(() => {
-        // Listen for messages from other tabs
+        const initializeData = async () => {
+            if (isInitialized.current) return;
+            isInitialized.current = true;
+
+            try {
+                const [customers, requests, messages] = await Promise.all([
+                    supabaseService.loadCustomers(),
+                    supabaseService.loadRequests(),
+                    supabaseService.loadMessages(),
+                ]);
+
+                if (customers.length > 0 || requests.length > 0 || messages.length > 0) {
+                    internalDispatch({
+                        type: 'SET_INITIAL_DATA',
+                        payload: { customers, requests, messages },
+                    });
+                } else {
+                    await Promise.all([
+                        ...CUSTOMERS.map(c => supabaseService.saveCustomer(c)),
+                        ...REQUESTS.map(r => supabaseService.saveRequest(r)),
+                        ...MESSAGES.map(m => supabaseService.saveMessage(m)),
+                    ]);
+
+                    internalDispatch({
+                        type: 'SET_INITIAL_DATA',
+                        payload: { customers: CUSTOMERS, requests: REQUESTS, messages: MESSAGES },
+                    });
+                }
+            } catch (error) {
+                console.error('Error initializing data:', error);
+            }
+        };
+
+        initializeData();
+    }, []);
+
+    useEffect(() => {
+        supabaseService.subscribeToCustomers(
+            (customer) => {
+                console.log('Real-time: Customer inserted', customer);
+                internalDispatch({
+                    type: 'BULK_ADD_CUSTOMERS',
+                    payload: [customer],
+                });
+            },
+            (customer) => {
+                console.log('Real-time: Customer updated', customer);
+                internalDispatch({
+                    type: 'SET_INITIAL_DATA',
+                    payload: {
+                        customers: state.customers.map(c => c.id === customer.id ? customer : c),
+                        requests: state.requests,
+                        messages: state.messages,
+                    },
+                });
+            },
+            (id) => {
+                console.log('Real-time: Customer deleted', id);
+                internalDispatch({
+                    type: 'SET_INITIAL_DATA',
+                    payload: {
+                        customers: state.customers.filter(c => c.id !== id),
+                        requests: state.requests,
+                        messages: state.messages,
+                    },
+                });
+            }
+        );
+
+        supabaseService.subscribeToRequests(
+            (request) => {
+                console.log('Real-time: Request inserted', request);
+                internalDispatch({
+                    type: 'ADD_REQUEST',
+                    payload: request,
+                });
+            },
+            (request) => {
+                console.log('Real-time: Request updated', request);
+                internalDispatch({
+                    type: 'UPDATE_REQUEST',
+                    payload: request,
+                });
+            },
+            (id) => {
+                console.log('Real-time: Request deleted', id);
+                internalDispatch({
+                    type: 'SET_INITIAL_DATA',
+                    payload: {
+                        customers: state.customers,
+                        requests: state.requests.filter(r => r.id !== id),
+                        messages: state.messages,
+                    },
+                });
+            }
+        );
+
+        supabaseService.subscribeToMessages(
+            (message) => {
+                console.log('Real-time: Message inserted', message);
+                internalDispatch({
+                    type: 'SEND_MESSAGE',
+                    payload: message,
+                });
+            },
+            (message) => {
+                console.log('Real-time: Message updated', message);
+                internalDispatch({
+                    type: 'SET_INITIAL_DATA',
+                    payload: {
+                        customers: state.customers,
+                        requests: state.requests,
+                        messages: state.messages.map(m => m.id === message.id ? message : m),
+                    },
+                });
+            },
+            (id) => {
+                console.log('Real-time: Message deleted', id);
+                internalDispatch({
+                    type: 'SET_INITIAL_DATA',
+                    payload: {
+                        customers: state.customers,
+                        requests: state.requests,
+                        messages: state.messages.filter(m => m.id !== id),
+                    },
+                });
+            }
+        );
+
+        return () => {
+            supabaseService.unsubscribeAll();
+        };
+    }, []);
+
+    useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
             const { action, sourceId } = event.data;
-            // If the message is from another tab, dispatch the action locally
             if (sourceId !== tabId) {
                 console.log('Received action from another tab:', action);
                 internalDispatch(action);
@@ -183,20 +318,50 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         channel.addEventListener('message', handleMessage);
 
-        // Cleanup
         return () => {
             channel.removeEventListener('message', handleMessage);
         };
     }, [tabId]);
 
-    // Create a dispatch function that also broadcasts the action
-    const dispatch = useCallback((action: Action) => {
-        // Dispatch locally first for immediate UI update
+    const dispatch = useCallback(async (action: Action) => {
         internalDispatch(action);
-        // Broadcast the action to other tabs
         channel.postMessage({ action, sourceId: tabId });
-    }, [tabId]);
 
+        try {
+            switch (action.type) {
+                case 'ADD_REQUEST':
+                    await supabaseService.saveRequest(action.payload);
+                    break;
+                case 'UPDATE_REQUEST':
+                    await supabaseService.saveRequest(action.payload);
+                    if (action.payload.requestType === RequestType.NEW_POLICY && action.payload.status === RequestStatus.APPROVED) {
+                        const newCustomer = state.customers.find(c => !CUSTOMERS.some(ic => ic.id === c.id));
+                        if (newCustomer) {
+                            await supabaseService.saveCustomer(newCustomer);
+                        }
+                    }
+                    break;
+                case 'SEND_MESSAGE':
+                    await supabaseService.saveMessage(action.payload);
+                    break;
+                case 'MARK_MESSAGES_AS_READ': {
+                    const { chatPartnerId, currentUserId } = action.payload;
+                    const messagesToUpdate = state.messages.filter(
+                        m => m.senderId === chatPartnerId && m.recipientId === currentUserId && m.status === 'unread'
+                    );
+                    await Promise.all(
+                        messagesToUpdate.map(m => supabaseService.saveMessage({ ...m, status: 'read' }))
+                    );
+                    break;
+                }
+                case 'BULK_ADD_CUSTOMERS':
+                    await Promise.all(action.payload.map(c => supabaseService.saveCustomer(c)));
+                    break;
+            }
+        } catch (error) {
+            console.error('Error saving to Supabase:', error);
+        }
+    }, [state, tabId]);
 
     const dispatchWithOffline = (action: Action) => {
         if (isOnline) {
