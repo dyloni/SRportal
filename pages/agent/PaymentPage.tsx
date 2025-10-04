@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { useData } from '../../contexts/DataContext';
-import { Customer, RequestType, MakePaymentRequest, RequestStatus, PaymentMethod } from '../../types';
+import { Customer, PaymentMethod, PolicyStatus } from '../../types';
 import { calculatePremium, calculateOutstandingBalance, getNextPaymentPeriod } from '../../utils/policyHelpers';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../utils/supabase';
 
 const FormInput: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props) => (
     <input {...props} className={`block w-full px-4 py-3 text-brand-text-primary bg-brand-surface border border-brand-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-pink focus:border-brand-pink ${props.className}`} />
@@ -45,27 +46,31 @@ const PaymentPage: React.FC = () => {
         setSearchTerm('');
     };
     
-    const handleSubmitPayment = (e: React.FormEvent) => {
+    const handleSubmitPayment = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedCustomer || !user) return;
 
-        const newPaymentRequest: MakePaymentRequest = {
-            id: Date.now(),
-            agentId: user.id,
-            customerId: selectedCustomer.id,
-            requestType: RequestType.MAKE_PAYMENT,
-            status: RequestStatus.PENDING,
-            createdAt: new Date().toISOString(),
-            paymentAmount: parseFloat(paymentAmount),
-            paymentType: 'Renewal',
-            paymentMethod: paymentMethod,
-            paymentPeriod: getNextPaymentPeriod(selectedCustomer, state.requests),
-            receiptFilename: receiptFilename,
-        };
+        try {
+            const paymentPeriod = getNextPaymentPeriod(selectedCustomer, state.requests);
 
-        dispatchWithOffline({ type: 'ADD_REQUEST', payload: newPaymentRequest });
-        alert('Payment request submitted successfully!');
-        navigate(`/requests`);
+            const { error } = await supabase
+                .from('customers')
+                .update({
+                    status: PolicyStatus.ACTIVE,
+                    latest_receipt_date: new Date().toISOString(),
+                    premium_period: paymentPeriod,
+                    last_updated: new Date().toISOString(),
+                })
+                .eq('id', selectedCustomer.id);
+
+            if (error) throw error;
+
+            alert('Payment recorded successfully! Customer status updated to Active.');
+            navigate(`/customers`);
+        } catch (error) {
+            console.error('Error recording payment:', error);
+            alert('Error recording payment. Please try again.');
+        }
     };
 
     const balance = selectedCustomer ? calculateOutstandingBalance(selectedCustomer, state.requests) : null;
