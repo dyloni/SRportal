@@ -24,6 +24,18 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
 
+  useEffect(() => {
+    const signInAnonymously = async () => {
+      const { data, error } = await supabase.auth.signInAnonymously();
+      if (error) {
+        console.error('Error signing in to Supabase:', error);
+      } else {
+        console.log('Signed in to Supabase:', data);
+      }
+    };
+
+    signInAnonymously();
+  }, []);
 
   const login = (loggedInUser: AuthUser) => {
     setUser(loggedInUser);

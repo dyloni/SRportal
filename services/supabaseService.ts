@@ -1,10 +1,10 @@
 import { supabase } from '../utils/supabase';
-import { Customer, Claim, ChatMessage, Agent } from '../types';
+import { Customer, AppRequest, ChatMessage, Agent } from '../types';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 export class SupabaseService {
   private customersChannel: RealtimeChannel | null = null;
-  private claimsChannel: RealtimeChannel | null = null;
+  private requestsChannel: RealtimeChannel | null = null;
   private messagesChannel: RealtimeChannel | null = null;
 
   async loadAgents(): Promise<Agent[]> {
@@ -41,22 +41,22 @@ export class SupabaseService {
     return (data || []).map(this.transformCustomerFromDB);
   }
 
-  async loadClaims(): Promise<Claim[]> {
+  async loadRequests(): Promise<AppRequest[]> {
     const { data, error } = await supabase
-      .from('claims')
+      .from('requests')
       .select('*')
       .order('id');
 
     if (error) {
-      console.error('Error loading claims:', error);
+      console.error('Error loading requests:', error);
       return [];
     }
 
-    return (data || []).map(this.transformClaimFromDB);
+    return (data || []).map(this.transformRequestFromDB);
   }
 
   async loadMessages(): Promise<ChatMessage[]> {
-    const { data, error} = await supabase
+    const { data, error } = await supabase
       .from('messages')
       .select('*')
       .order('id');
@@ -82,15 +82,15 @@ export class SupabaseService {
     }
   }
 
-  async saveClaim(claim: Claim): Promise<void> {
-    const dbClaim = this.transformClaimToDB(claim);
+  async saveRequest(request: AppRequest): Promise<void> {
+    const dbRequest = this.transformRequestToDB(request);
 
     const { error } = await supabase
-      .from('claims')
-      .upsert(dbClaim, { onConflict: 'id' });
+      .from('requests')
+      .upsert(dbRequest, { onConflict: 'id' });
 
     if (error) {
-      console.error('Error saving claim:', error);
+      console.error('Error saving request:', error);
       throw error;
     }
   }
@@ -141,32 +141,32 @@ export class SupabaseService {
       .subscribe();
   }
 
-  subscribeToClaims(
-    onInsert: (claim: Claim) => void,
-    onUpdate: (claim: Claim) => void,
+  subscribeToRequests(
+    onInsert: (request: AppRequest) => void,
+    onUpdate: (request: AppRequest) => void,
     onDelete: (id: number) => void
   ): void {
-    this.claimsChannel = supabase
-      .channel('claims-changes')
+    this.requestsChannel = supabase
+      .channel('requests-changes')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'claims' },
+        { event: 'INSERT', schema: 'public', table: 'requests' },
         (payload) => {
-          const claim = this.transformClaimFromDB(payload.new);
-          onInsert(claim);
+          const request = this.transformRequestFromDB(payload.new);
+          onInsert(request);
         }
       )
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'claims' },
+        { event: 'UPDATE', schema: 'public', table: 'requests' },
         (payload) => {
-          const claim = this.transformClaimFromDB(payload.new);
-          onUpdate(claim);
+          const request = this.transformRequestFromDB(payload.new);
+          onUpdate(request);
         }
       )
       .on(
         'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'claims' },
+        { event: 'DELETE', schema: 'public', table: 'requests' },
         (payload) => {
           onDelete(payload.old.id);
         }
@@ -212,9 +212,9 @@ export class SupabaseService {
       supabase.removeChannel(this.customersChannel);
       this.customersChannel = null;
     }
-    if (this.claimsChannel) {
-      supabase.removeChannel(this.claimsChannel);
-      this.claimsChannel = null;
+    if (this.requestsChannel) {
+      supabase.removeChannel(this.requestsChannel);
+      this.requestsChannel = null;
     }
     if (this.messagesChannel) {
       supabase.removeChannel(this.messagesChannel);
@@ -284,46 +284,116 @@ export class SupabaseService {
     };
   }
 
-  private transformClaimFromDB(row: any): Claim {
-    return {
+  private transformRequestFromDB(row: any): AppRequest {
+    const baseRequest = {
       id: row.id,
-      customerId: row.customer_id,
-      policyNumber: row.policy_number,
-      customerName: row.customer_name,
-      deceasedName: row.deceased_name,
-      deceasedParticipantId: row.deceased_participant_id,
-      dateOfDeath: row.date_of_death,
-      claimAmount: parseFloat(row.claim_amount || 0),
+      agentId: row.agent_id,
       status: row.status,
-      filedBy: this.parseUserId(row.filed_by),
-      filedByName: row.filed_by_name,
-      filedDate: row.filed_date,
-      approvedDate: row.approved_date,
-      paidDate: row.paid_date,
-      notes: row.notes,
-      deathCertificateFilename: row.death_certificate_filename,
+      createdAt: row.created_at_app,
+      adminNotes: row.admin_notes,
     };
+
+    switch (row.request_type) {
+      case 'New Policy':
+        return {
+          ...baseRequest,
+          requestType: row.request_type,
+          customerData: row.customer_data,
+          idPhotoFilename: row.id_photo_filename,
+          paymentAmount: parseFloat(row.payment_amount || 0),
+          paymentMethod: row.payment_method,
+          receiptFilename: row.receipt_filename,
+        } as any;
+      case 'Edit Customer Details':
+        return {
+          ...baseRequest,
+          requestType: row.request_type,
+          customerId: row.customer_id,
+          oldValues: row.old_values,
+          newValues: row.new_values,
+        } as any;
+      case 'Add Dependent':
+        return {
+          ...baseRequest,
+          requestType: row.request_type,
+          customerId: row.customer_id,
+          dependentData: row.dependent_data,
+        } as any;
+      case 'Policy Upgrade':
+      case 'Policy Downgrade':
+        return {
+          ...baseRequest,
+          requestType: row.request_type,
+          customerId: row.customer_id,
+          details: row.details,
+        } as any;
+      case 'Make Payment':
+        return {
+          ...baseRequest,
+          requestType: row.request_type,
+          customerId: row.customer_id,
+          paymentAmount: parseFloat(row.payment_amount || 0),
+          paymentType: row.payment_type,
+          paymentMethod: row.payment_method,
+          paymentPeriod: row.payment_period,
+          receiptFilename: row.receipt_filename,
+        } as any;
+      default:
+        throw new Error(`Unknown request type: ${row.request_type}`);
+    }
   }
 
-  private transformClaimToDB(claim: Claim): any {
-    return {
-      id: claim.id,
-      customer_id: claim.customerId,
-      policy_number: claim.policyNumber,
-      customer_name: claim.customerName,
-      deceased_name: claim.deceasedName,
-      deceased_participant_id: claim.deceasedParticipantId,
-      date_of_death: claim.dateOfDeath,
-      claim_amount: claim.claimAmount,
-      status: claim.status,
-      filed_by: String(claim.filedBy),
-      filed_by_name: claim.filedByName,
-      filed_date: claim.filedDate,
-      approved_date: claim.approvedDate,
-      paid_date: claim.paidDate,
-      notes: claim.notes,
-      death_certificate_filename: claim.deathCertificateFilename,
+  private transformRequestToDB(request: AppRequest): any {
+    const baseRequest = {
+      id: request.id,
+      agent_id: request.agentId,
+      status: request.status,
+      request_type: request.requestType,
+      admin_notes: request.adminNotes,
+      created_at_app: request.createdAt,
     };
+
+    switch (request.requestType) {
+      case 'New Policy':
+        return {
+          ...baseRequest,
+          customer_data: request.customerData,
+          id_photo_filename: request.idPhotoFilename,
+          payment_amount: request.paymentAmount,
+          payment_method: request.paymentMethod,
+          receipt_filename: request.receiptFilename,
+        };
+      case 'Edit Customer Details':
+        return {
+          ...baseRequest,
+          customer_id: request.customerId,
+          old_values: request.oldValues,
+          new_values: request.newValues,
+        };
+      case 'Add Dependent':
+        return {
+          ...baseRequest,
+          customer_id: request.customerId,
+          dependent_data: request.dependentData,
+        };
+      case 'Policy Upgrade':
+      case 'Policy Downgrade':
+        return {
+          ...baseRequest,
+          customer_id: request.customerId,
+          details: request.details,
+        };
+      case 'Make Payment':
+        return {
+          ...baseRequest,
+          customer_id: request.customerId,
+          payment_amount: request.paymentAmount,
+          payment_type: request.paymentType,
+          payment_method: request.paymentMethod,
+          payment_period: request.paymentPeriod,
+          receipt_filename: request.receiptFilename,
+        };
+    }
   }
 
   private transformMessageFromDB(row: any): ChatMessage {
