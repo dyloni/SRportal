@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { DataProvider, useData } from './contexts/DataContext';
@@ -41,7 +41,24 @@ const App: React.FC = () => {
 const Main: React.FC = () => {
   const { user } = useAuth();
   const { dispatch } = useData();
-  useSync(dispatch); // Initialize the sync service
+  useSync(dispatch);
+
+  useEffect(() => {
+    const requestCameraPermission = async () => {
+      try {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          await navigator.mediaDevices.getUserMedia({ video: true });
+          console.log('Camera permission granted');
+        }
+      } catch (error) {
+        console.warn('Camera permission denied or unavailable:', error);
+      }
+    };
+
+    if (user) {
+      requestCameraPermission();
+    }
+  }, [user]);
 
   if (!user) {
     return <Login />;
