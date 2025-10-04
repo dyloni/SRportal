@@ -15,12 +15,10 @@ const AgentDashboard: React.FC = () => {
     if (!user) return null;
 
     const myCustomers = state.customers.filter(c => c.assignedAgentId === user.id);
-    const myRequests = state.requests.filter(r => r.agentId === user.id);
-    const pendingRequests = myRequests.filter(r => r.status === 'Pending').length;
 
     const analytics = useMemo(() =>
-        calculateAnalytics(state.customers, state.requests, selectedPeriod, user.id),
-        [state.customers, state.requests, selectedPeriod, user.id]
+        calculateAnalytics(state.customers, [], selectedPeriod, user.id),
+        [state.customers, selectedPeriod, user.id]
     );
 
     const periodLabel = getPeriodLabel(selectedPeriod);
@@ -73,13 +71,13 @@ const AgentDashboard: React.FC = () => {
                     }
                 />
                 <AnalyticsCard
-                    title="Pending Requests"
-                    value={analytics.pendingRequests}
-                    subtitle={`${analytics.approvedRequests} approved, ${analytics.rejectedRequests} rejected`}
+                    title="Total Premium"
+                    value={`$${analytics.totalPremium.toFixed(2)}`}
+                    subtitle={`${periodLabel} earnings`}
                     color="orange"
                     icon={
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                     }
                 />
@@ -115,7 +113,7 @@ const AgentDashboard: React.FC = () => {
                   <Link to="/new-policy" className="bg-brand-pink text-white px-6 py-3 rounded-md hover:bg-brand-light-pink font-medium transition-colors">Create New Policy</Link>
                   <Link to="/payment" className="bg-gray-200 text-brand-text-secondary px-6 py-3 rounded-md hover:bg-gray-300 font-medium transition-colors">Make a Payment</Link>
                   <Link to="/customers" className="bg-gray-200 text-brand-text-secondary px-6 py-3 rounded-md hover:bg-gray-300 font-medium transition-colors">View Customers</Link>
-                  <Link to="/requests" className="bg-gray-200 text-brand-text-secondary px-6 py-3 rounded-md hover:bg-gray-300 font-medium transition-colors">View Requests</Link>
+                  <Link to="/messages" className="bg-gray-200 text-brand-text-secondary px-6 py-3 rounded-md hover:bg-gray-300 font-medium transition-colors">Messages</Link>
                 </div>
               </Card>
             </div>

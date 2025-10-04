@@ -5,7 +5,6 @@ import { Link } from 'react-router-dom';
 import TimePeriodSelector from '../../components/analytics/TimePeriodSelector';
 import AnalyticsCard from '../../components/analytics/AnalyticsCard';
 import { calculateAnalytics, getPeriodLabel, TimePeriod } from '../../utils/analyticsHelpers';
-import { RequestType } from '../../types';
 
 const AdminDashboard: React.FC = () => {
     const { state } = useData();
@@ -13,11 +12,11 @@ const AdminDashboard: React.FC = () => {
 
     const totalCustomers = state.customers.length;
     const totalAgents = state.agents.length;
-    const pendingRequests = state.requests.filter(r => r.status === 'Pending').length;
+    const pendingClaims = state.claims.filter(c => c.status === 'Pending').length;
 
     const analytics = useMemo(() =>
-        calculateAnalytics(state.customers, state.requests, selectedPeriod),
-        [state.customers, state.requests, selectedPeriod]
+        calculateAnalytics(state.customers, [], selectedPeriod),
+        [state.customers, selectedPeriod]
     );
 
     const periodLabel = getPeriodLabel(selectedPeriod);
@@ -25,7 +24,7 @@ const AdminDashboard: React.FC = () => {
     const topAgents = useMemo(() => {
         const agentStats = state.agents.map(agent => {
             const agentCustomers = state.customers.filter(c => c.assignedAgentId === agent.id);
-            const agentAnalytics = calculateAnalytics(state.customers, state.requests, selectedPeriod, agent.id);
+            const agentAnalytics = calculateAnalytics(state.customers, [], selectedPeriod, agent.id);
             return {
                 agent,
                 customerCount: agentCustomers.length,
@@ -34,7 +33,7 @@ const AdminDashboard: React.FC = () => {
             };
         });
         return agentStats.sort((a, b) => b.revenue - a.revenue).slice(0, 5);
-    }, [state.agents, state.customers, state.requests, selectedPeriod]);
+    }, [state.agents, state.customers, selectedPeriod]);
 
     return (
         <div>
@@ -84,13 +83,13 @@ const AdminDashboard: React.FC = () => {
                     }
                 />
                 <AnalyticsCard
-                    title="Pending Requests"
-                    value={analytics.pendingRequests}
-                    subtitle={`${analytics.approvedRequests} approved, ${analytics.rejectedRequests} rejected`}
+                    title="Pending Claims"
+                    value={pendingClaims}
+                    subtitle={`${state.claims.filter(c => c.status === 'Approved').length} approved, ${state.claims.filter(c => c.status === 'Paid').length} paid`}
                     color="orange"
                     icon={
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                     }
                 />
@@ -156,25 +155,32 @@ const AdminDashboard: React.FC = () => {
                     </div>
                 </Card>
 
-                <Card title="Recent Activity">
+                <Card title="Recent Claims">
                     <ul className="space-y-3">
-                        {state.requests.slice(-8).reverse().map(req => {
-                            const agent = state.agents.find(a => a.id === req.agentId);
-                            const statusColor = req.status === 'Approved' ? 'text-green-600' : req.status === 'Pending' ? 'text-orange-600' : 'text-red-600';
+                        {state.claims.slice(-8).reverse().map(claim => {
+                            const statusColor = claim.status === 'Paid' ? 'text-green-600' : claim.status === 'Approved' ? 'text-blue-600' : claim.status === 'Pending' ? 'text-orange-600' : 'text-red-600';
                             return (
-                                <li key={req.id} className="border-b last:border-b-0 pb-3 last:pb-0">
+                                <li key={claim.id} className="border-b last:border-b-0 pb-3 last:pb-0">
                                     <div className="flex justify-between items-start">
                                         <div>
-                                            <p className="font-semibold text-sm text-brand-text-primary">{req.requestType}</p>
+                                            <p className="font-semibold text-sm text-brand-text-primary">{claim.deceasedName}</p>
                                             <p className="text-xs text-brand-text-secondary">
-                                                by {agent ? `${agent.firstName} ${agent.surname}` : `Agent ${req.agentId}`}
+                                                Policy: {claim.policyNumber} · Filed by {claim.filedByName}
                                             </p>
                                         </div>
-                                        <span className={`text-xs font-semibold ${statusColor}`}>{req.status}</span>
+                                        <div className="text-right">
+                                            <span className={`text-xs font-semibold ${statusColor}`}>{claim.status}</span>
+                                            <p className="text-xs text-brand-text-secondary">${claim.claimAmount.toLocaleString()}</p>
+                                        </div>
                                     </div>
                                 </li>
                             );
                         })}
+                        {state.claims.length === 0 && (
+                            <li className="text-center py-4 text-brand-text-secondary">
+                                No claims yet
+                            </li>
+                        )}
                     </ul>
                 </Card>
             </div>
@@ -184,7 +190,7 @@ const AdminDashboard: React.FC = () => {
                     <div className="flex flex-wrap gap-4">
                         <Link to="/customers" className="bg-brand-pink text-white px-6 py-3 rounded-md hover:bg-brand-light-pink font-medium transition-colors">View Customers</Link>
                         <Link to="/agents" className="bg-gray-200 text-brand-text-secondary px-6 py-3 rounded-md hover:bg-gray-300 font-medium transition-colors">Manage Agents</Link>
-                        <Link to="/requests" className="bg-gray-200 text-brand-text-secondary px-6 py-3 rounded-md hover:bg-gray-300 font-medium transition-colors">Review Requests</Link>
+                        <Link to="/claims" className="bg-gray-200 text-brand-text-secondary px-6 py-3 rounded-md hover:bg-gray-300 font-medium transition-colors">Manage Claims</Link>
                     </div>
                 </Card>
             </div>
