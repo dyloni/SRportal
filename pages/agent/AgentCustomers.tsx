@@ -6,6 +6,7 @@ import Card from '../../components/ui/Card';
 import { useNavigate } from 'react-router-dom';
 import PolicyStatusBadge from '../../components/ui/PolicyStatusBadge';
 import { supabase } from '../../utils/supabase';
+import { formatPolicyNumber } from '../../utils/policyHelpers';
 
 const AgentCustomers: React.FC = () => {
     const { user } = useAuth();
@@ -94,7 +95,7 @@ const AgentCustomers: React.FC = () => {
                                 return (
                                     <tr key={customer.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/customers/${customer.id}`)}>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-brand-text-primary">{`${customer.firstName} ${customer.surname}`}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-text-secondary">{customer.policyNumber}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-text-secondary">{formatPolicyNumber(customer.policyNumber)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-text-secondary">{customer.phone}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-text-secondary">{customer.funeralPackage}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-text-secondary text-center">{customer.participants.length}</td>

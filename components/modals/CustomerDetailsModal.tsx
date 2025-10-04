@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Customer, Payment } from '../../types';
 import Button from '../ui/Button';
 import { supabase } from '../../utils/supabase';
+import { formatPolicyNumber } from '../../utils/policyHelpers';
 
 interface CustomerDetailsModalProps {
     customer: Customer;
@@ -41,7 +42,7 @@ const CustomerDetailsModal: React.FC<CustomerDetailsModalProps> = ({ customer, o
                         <h4 className="text-lg font-semibold mb-2">Policy Information</h4>
                         <div className="grid grid-cols-2 gap-2 text-sm">
                             <p className="text-gray-600">Policy Number:</p>
-                            <p className="font-medium">{customer.policyNumber}</p>
+                            <p className="font-medium">{formatPolicyNumber(customer.policyNumber)}</p>
                             <p className="text-gray-600">Status:</p>
                             <p className="font-medium">{customer.status}</p>
                             <p className="text-gray-600">Premium:</p>

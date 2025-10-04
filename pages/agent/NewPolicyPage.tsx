@@ -7,7 +7,7 @@ import {
     Participant, Customer, PolicyStatus
 } from '../../types';
 import { FUNERAL_PACKAGE_DETAILS, MEDICAL_PACKAGE_DETAILS, CASH_BACK_DETAILS } from '../../constants';
-import { calculatePremiumComponents } from '../../utils/policyHelpers';
+import { calculatePremiumComponents, generatePolicyNumber } from '../../utils/policyHelpers';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { supabase } from '../../utils/supabase';
@@ -170,8 +170,7 @@ const NewPolicyPage: React.FC = () => {
                 .maybeSingle();
 
             const nextId = maxIdData ? maxIdData.id + 1 : 1;
-            const year = new Date().getFullYear().toString().slice(-2);
-            const policyNumber = `SR${year}${String(nextId).padStart(5, '0')}`;
+            const policyNumber = generatePolicyNumber(formData.idNumber);
 
             const { data: existingPolicy } = await supabase
                 .from('customers')
@@ -180,7 +179,7 @@ const NewPolicyPage: React.FC = () => {
                 .maybeSingle();
 
             if (existingPolicy) {
-                alert('Policy number conflict. Please try again.');
+                alert('A policy with this ID number already exists. Each ID number can only have one policy.');
                 return;
             }
 

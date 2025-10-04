@@ -2,6 +2,25 @@ import { Customer, Participant, FuneralPackage, MedicalPackage, CashBackAddon, A
 import { MEDICAL_PACKAGE_DETAILS, CASH_BACK_DETAILS } from '../constants';
 import { calculateAgeSurcharge } from './participantHelpers';
 
+export const formatPolicyNumber = (policyNumber: string): string => {
+    const cleaned = policyNumber.replace(/[-\s]/g, '');
+
+    if (cleaned.length < 10) {
+        return policyNumber;
+    }
+
+    const part1 = cleaned.slice(0, 2);
+    const part2 = cleaned.slice(2, 8);
+    const part3 = cleaned.slice(8, 9);
+    const part4 = cleaned.slice(9);
+
+    return `${part1}-${part2}-${part3}-${part4}`;
+};
+
+export const generatePolicyNumber = (idNumber: string): string => {
+    return idNumber.replace(/[-\s]/g, '');
+};
+
 const packagePremiums: Record<string, { familyRate: number }> = {
     [FuneralPackage.LITE]: { familyRate: 5.00 },
     [FuneralPackage.STANDARD]: { familyRate: 8.00 },

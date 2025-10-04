@@ -7,6 +7,7 @@ import PolicyStatusBadge from '../../components/ui/PolicyStatusBadge';
 import Button from '../../components/ui/Button';
 import { exportCustomersToFile } from '../../utils/csvHelpers';
 import UploadCustomersModal from '../../components/modals/UploadCustomersModal';
+import { formatPolicyNumber } from '../../utils/policyHelpers';
 
 
 const AdminCustomers: React.FC = () => {
@@ -70,7 +71,7 @@ const AdminCustomers: React.FC = () => {
                                 return (
                                     <tr key={customer.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/customers/${customer.id}`)}>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-brand-text-primary">{`${customer.firstName} ${customer.surname}`}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-text-secondary">{customer.policyNumber}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-brand-text-secondary">{formatPolicyNumber(customer.policyNumber)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                                             <PolicyStatusBadge status={customer.status} />
                                         </td>

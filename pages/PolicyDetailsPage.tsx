@@ -5,7 +5,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import PolicyStatusBadge from '../components/ui/PolicyStatusBadge';
 import { getEffectivePolicyStatus, getPaymentHistory, PaymentHistoryItem } from '../utils/statusHelpers';
-import { getParticipantSuffix } from '../utils/policyHelpers';
+import { getParticipantSuffix, formatPolicyNumber } from '../utils/policyHelpers';
 import ParticipantSuffix from '../components/ui/ParticipantSuffix';
 import MakePaymentModal from '../components/modals/MakePaymentModal';
 import EditCustomerModal from '../components/modals/EditCustomerModal';
@@ -79,7 +79,7 @@ const PolicyDetailsPage: React.FC = () => {
                     <h2 className="text-2xl font-bold leading-7 text-brand-text-primary sm:text-3xl sm:truncate">
                         {`${customer.firstName} ${customer.surname}`}
                     </h2>
-                    <p className="mt-1 text-sm text-brand-text-secondary">Policy Number: {customer.policyNumber}</p>
+                    <p className="mt-1 text-sm text-brand-text-secondary">Policy Number: {formatPolicyNumber(customer.policyNumber)}</p>
                 </div>
                 <div className="mt-4 flex md:mt-0 md:ml-4 space-x-2">
                     <Button variant="secondary" onClick={() => setModal('edit')}>Edit Details</Button>
