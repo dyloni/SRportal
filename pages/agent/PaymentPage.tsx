@@ -85,25 +85,15 @@ const PaymentPage: React.FC = () => {
             nextPaymentDate.setMonth(policyStartDate.getMonth() + paymentCount);
             const paymentPeriod = nextPaymentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
-            const { data: maxIdData } = await supabase
-                .from('payments')
-                .select('id')
-                .order('id', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-
-            const nextPaymentId = maxIdData ? maxIdData.id + 1 : 1;
-
             const { error: paymentError } = await supabase
                 .from('payments')
                 .insert({
-                    id: nextPaymentId,
                     customer_id: selectedCustomer.id,
                     policy_number: selectedCustomer.policyNumber,
                     payment_amount: parseFloat(paymentAmount),
                     payment_method: paymentMethod,
                     payment_period: paymentPeriod,
-                    receipt_filename: receiptFilename,
+                    receipt_filename: receiptFilename || null,
                     recorded_by_agent_id: user.id,
                     payment_date: new Date().toISOString(),
                 });
