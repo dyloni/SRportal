@@ -1,7 +1,7 @@
 import React, { createContext, useReducer, useContext, ReactNode, useEffect, useRef, useCallback } from 'react';
 import { faker } from '@faker-js/faker';
-import { AppRequest, Customer, ChatMessage, Agent, Admin, Action, RequestType, RequestStatus, PolicyStatus, Participant } from '../types';
-import { AGENTS, ADMINS, CUSTOMERS, REQUESTS, MESSAGES } from '../constants';
+import { Claim, Customer, ChatMessage, Agent, Admin, Action } from '../types';
+import { AGENTS, ADMINS, CUSTOMERS, MESSAGES } from '../constants';
 import * as db from '../utils/db';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { calculatePremiumComponents } from '../utils/policyHelpers';
@@ -11,7 +11,7 @@ interface AppState {
     agents: Agent[];
     admins: Admin[];
     customers: Customer[];
-    requests: AppRequest[];
+    claims: Claim[];
     messages: ChatMessage[];
 }
 
@@ -28,7 +28,7 @@ const initialState: AppState = {
     agents: AGENTS,
     admins: ADMINS,
     customers: CUSTOMERS,
-    requests: REQUESTS,
+    claims: [],
     messages: MESSAGES,
 };
 
@@ -38,95 +38,31 @@ const dataReducer = (state: AppState, action: Action): AppState => {
             return {
                 ...state,
                 customers: action.payload.customers,
-                requests: action.payload.requests,
+                claims: action.payload.claims,
                 messages: action.payload.messages,
             };
-        case 'ADD_REQUEST':
-             if (state.requests.some(r => r.id === action.payload.id)) {
-                return state; // Prevent duplicates from broadcast
+        case 'ADD_CLAIM':
+             if (state.claims.some(c => c.id === action.payload.id)) {
+                return state;
             }
             return {
                 ...state,
-                requests: [...state.requests, action.payload],
+                claims: [...state.claims, action.payload],
             };
-        case 'UPDATE_REQUEST': {
-            const updatedRequest = action.payload;
-
-            // If a new policy request is approved, create a new customer from the request data
-            if (updatedRequest.requestType === RequestType.NEW_POLICY && updatedRequest.status === RequestStatus.APPROVED) {
-                
-                const originalRequest = state.requests.find(r => r.id === updatedRequest.id);
-                if (originalRequest?.requestType !== RequestType.NEW_POLICY) {
-                    return { ...state, requests: state.requests.map(req => req.id === updatedRequest.id ? updatedRequest : req) };
-                }
-
-                const newCustomerData = originalRequest.customerData;
-                const idNumber = newCustomerData.idNumber;
-                const policyNumber = idNumber.replace(/[^a-zA-Z0-9]/g, '');
-
-                if (state.customers.some(c => c.policyNumber === policyNumber)) {
-                    const rejectedRequest = { ...updatedRequest, status: RequestStatus.REJECTED, adminNotes: `Rejected: Policy number ${policyNumber} already exists.` };
-                     return { ...state, requests: state.requests.map(req => req.id === rejectedRequest.id ? rejectedRequest : req) };
-                }
-
-                const newCustomerId = Math.max(0, ...state.customers.map(c => c.id)) + 1;
-                const newParticipantStartId = Math.max(0, ...state.customers.flatMap(c => c.participants).map(p => p.id)) + 1;
-                const inceptionDate = new Date(originalRequest.createdAt);
-                const coverDate = new Date(inceptionDate);
-                coverDate.setMonth(coverDate.getMonth() + 3);
-
-                const premiumComponents = calculatePremiumComponents({ ...newCustomerData });
-
-                const newCustomer: Customer = {
-                    id: newCustomerId,
-                    uuid: faker.string.uuid(),
-                    policyNumber,
-                    firstName: newCustomerData.firstName,
-                    surname: newCustomerData.surname,
-                    inceptionDate: inceptionDate.toISOString(),
-                    coverDate: coverDate.toISOString(),
-                    status: PolicyStatus.ACTIVE,
-                    assignedAgentId: originalRequest.agentId,
-                    idNumber: newCustomerData.idNumber,
-                    dateOfBirth: newCustomerData.dateOfBirth,
-                    gender: newCustomerData.gender,
-                    phone: newCustomerData.phone,
-                    email: newCustomerData.email,
-                    streetAddress: newCustomerData.streetAddress,
-                    town: newCustomerData.town,
-                    postalAddress: newCustomerData.postalAddress,
-                    funeralPackage: newCustomerData.funeralPackage,
-                    // FIX: Removed `cashBackAddon` property. This property does not exist on the `Customer` type. Add-ons are handled per-participant.
-                    participants: newCustomerData.participants.map((p, index): Participant => ({
-                        ...p,
-                        id: newParticipantStartId + index,
-                        uuid: faker.string.uuid(),
-                    })),
-                    policyPremium: premiumComponents.policyPremium,
-                    addonPremium: premiumComponents.addonPremium,
-                    totalPremium: premiumComponents.totalPremium,
-                    premiumPeriod: inceptionDate.toLocaleString('default', { month: 'long', year: 'numeric' }),
-                    latestReceiptDate: inceptionDate.toISOString(),
-                    dateCreated: inceptionDate.toISOString(),
-                    lastUpdated: new Date().toISOString(),
-                };
-
-                return {
-                    ...state,
-                    customers: [...state.customers, newCustomer],
-                    requests: state.requests.map(req =>
-                        req.id === updatedRequest.id ? updatedRequest : req
-                    ),
-                };
-            }
-
+        case 'UPDATE_CLAIM':
             return {
                 ...state,
-                requests: state.requests.map(req =>
-                    req.id === action.payload.id ? action.payload : req
+                claims: state.claims.map(c =>
+                    c.id === action.payload.id ? action.payload : c
                 ),
             };
-        }
+        case 'UPDATE_CUSTOMER':
+            return {
+                ...state,
+                customers: state.customers.map(c =>
+                    c.id === action.payload.id ? action.payload : c
+                ),
+            };
         case 'SEND_MESSAGE':
             if (state.messages.some(m => m.id === action.payload.id)) {
                 return state;
@@ -183,27 +119,26 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isInitialized.current = true;
 
             try {
-                const [customers, requests, messages] = await Promise.all([
+                const [customers, claims, messages] = await Promise.all([
                     supabaseService.loadCustomers(),
-                    supabaseService.loadRequests(),
+                    supabaseService.loadClaims(),
                     supabaseService.loadMessages(),
                 ]);
 
-                if (customers.length > 0 || requests.length > 0 || messages.length > 0) {
+                if (customers.length > 0 || messages.length > 0) {
                     internalDispatch({
                         type: 'SET_INITIAL_DATA',
-                        payload: { customers, requests, messages },
+                        payload: { customers, claims, messages },
                     });
                 } else {
                     await Promise.all([
                         ...CUSTOMERS.map(c => supabaseService.saveCustomer(c)),
-                        ...REQUESTS.map(r => supabaseService.saveRequest(r)),
                         ...MESSAGES.map(m => supabaseService.saveMessage(m)),
                     ]);
 
                     internalDispatch({
                         type: 'SET_INITIAL_DATA',
-                        payload: { customers: CUSTOMERS, requests: REQUESTS, messages: MESSAGES },
+                        payload: { customers: CUSTOMERS, claims: [], messages: MESSAGES },
                     });
                 }
             } catch (error) {
@@ -247,28 +182,28 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
         );
 
-        supabaseService.subscribeToRequests(
-            (request) => {
-                console.log('Real-time: Request inserted', request);
+        supabaseService.subscribeToClaims(
+            (claim) => {
+                console.log('Real-time: Claim inserted', claim);
                 internalDispatch({
-                    type: 'ADD_REQUEST',
-                    payload: request,
+                    type: 'ADD_CLAIM',
+                    payload: claim,
                 });
             },
-            (request) => {
-                console.log('Real-time: Request updated', request);
+            (claim) => {
+                console.log('Real-time: Claim updated', claim);
                 internalDispatch({
-                    type: 'UPDATE_REQUEST',
-                    payload: request,
+                    type: 'UPDATE_CLAIM',
+                    payload: claim,
                 });
             },
             (id) => {
-                console.log('Real-time: Request deleted', id);
+                console.log('Real-time: Claim deleted', id);
                 internalDispatch({
                     type: 'SET_INITIAL_DATA',
                     payload: {
                         customers: stateRef.current.customers,
-                        requests: stateRef.current.requests.filter(r => r.id !== id),
+                        claims: stateRef.current.claims.filter(c => c.id !== id),
                         messages: stateRef.current.messages,
                     },
                 });
@@ -334,17 +269,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         try {
             switch (action.type) {
-                case 'ADD_REQUEST':
-                    await supabaseService.saveRequest(action.payload);
+                case 'ADD_CLAIM':
+                    await supabaseService.saveClaim(action.payload);
                     break;
-                case 'UPDATE_REQUEST':
-                    await supabaseService.saveRequest(action.payload);
-                    if (action.payload.requestType === RequestType.NEW_POLICY && action.payload.status === RequestStatus.APPROVED) {
-                        const newCustomer = state.customers.find(c => !CUSTOMERS.some(ic => ic.id === c.id));
-                        if (newCustomer) {
-                            await supabaseService.saveCustomer(newCustomer);
-                        }
-                    }
+                case 'UPDATE_CLAIM':
+                    await supabaseService.saveClaim(action.payload);
+                    break;
+                case 'UPDATE_CUSTOMER':
+                    await supabaseService.saveCustomer(action.payload);
                     break;
                 case 'SEND_MESSAGE':
                     await supabaseService.saveMessage(action.payload);

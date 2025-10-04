@@ -141,87 +141,41 @@ export interface ChatMessage {
     status: 'read' | 'unread';
 }
 
-// --- REQUESTS ---
-// This will be a union of all specific request types
+// --- CLAIMS ---
 
-interface BaseRequest {
+export enum ClaimStatus {
+    PENDING = 'Pending',
+    APPROVED = 'Approved',
+    REJECTED = 'Rejected',
+    PAID = 'Paid',
+}
+
+export interface Claim {
     id: number;
-    agentId: number;
-    status: RequestStatus;
-    createdAt: string;
-    adminNotes?: string;
-}
-
-export interface NewPolicyRequestData {
-    firstName: string;
-    surname: string;
-    idNumber: string;
-    dateOfBirth: string;
-    gender: 'Male' | 'Female';
-    phone: string;
-    email: string;
-    streetAddress: string;
-    town: string;
-    postalAddress: string;
-    participants: (Omit<Participant, 'id' | 'uuid'>)[];
-    funeralPackage: FuneralPackage;
-    paymentMethod: PaymentMethod;
-    receiptFilename: string;
-    idPhotoFilename: string;
-}
-
-export interface NewPolicyRequest extends BaseRequest {
-    requestType: RequestType.NEW_POLICY;
-    customerData: NewPolicyRequestData;
-    idPhotoFilename: string;
-    paymentAmount: number;
-    paymentMethod: PaymentMethod;
-    receiptFilename: string;
-}
-
-export interface EditCustomerDetailsRequest extends BaseRequest {
-    requestType: RequestType.EDIT_CUSTOMER_DETAILS;
     customerId: number;
-    oldValues: Partial<Customer>;
-    newValues: Partial<Customer>;
+    policyNumber: string;
+    customerName: string;
+    deceasedName: string;
+    deceasedParticipantId: number;
+    dateOfDeath: string;
+    claimAmount: number;
+    status: ClaimStatus;
+    filedBy: number | 'admin';
+    filedByName: string;
+    filedDate: string;
+    approvedDate?: string;
+    paidDate?: string;
+    notes?: string;
+    deathCertificateFilename?: string;
 }
-
-export interface AddDependentRequestType extends BaseRequest {
-    requestType: RequestType.ADD_DEPENDENT;
-    customerId: number;
-    dependentData: Omit<Participant, 'id' | 'uuid'>;
-}
-
-export interface PolicyUpgradeRequest extends BaseRequest {
-    requestType: RequestType.POLICY_UPGRADE;
-    customerId: number;
-    details: string; // e.g., "From Standard to Premium"
-}
-
-export interface PolicyDowngradeRequest extends BaseRequest {
-    requestType: RequestType.POLICY_DOWNGRADE;
-    customerId: number;
-    details: string; // e.g., "From Premium to Standard"
-}
-
-export interface MakePaymentRequest extends BaseRequest {
-    requestType: RequestType.MAKE_PAYMENT;
-    customerId: number;
-    paymentAmount: number;
-    paymentType: 'Initial' | 'Renewal';
-    paymentMethod: PaymentMethod;
-    paymentPeriod: string;
-    receiptFilename: string;
-}
-
-export type AppRequest = NewPolicyRequest | EditCustomerDetailsRequest | AddDependentRequestType | PolicyUpgradeRequest | PolicyDowngradeRequest | MakePaymentRequest;
 
 // --- REDUCER ACTION TYPE ---
 
 export type Action =
-  | { type: 'SET_INITIAL_DATA'; payload: { customers: Customer[]; requests: AppRequest[]; messages: ChatMessage[] } }
-  | { type: 'ADD_REQUEST'; payload: AppRequest }
-  | { type: 'UPDATE_REQUEST'; payload: AppRequest }
+  | { type: 'SET_INITIAL_DATA'; payload: { customers: Customer[]; claims: Claim[]; messages: ChatMessage[] } }
+  | { type: 'ADD_CLAIM'; payload: Claim }
+  | { type: 'UPDATE_CLAIM'; payload: Claim }
   | { type: 'SEND_MESSAGE'; payload: ChatMessage }
   | { type: 'MARK_MESSAGES_AS_READ'; payload: { chatPartnerId: number | 'admin'; currentUserId: number | 'admin' } }
-  | { type: 'BULK_ADD_CUSTOMERS'; payload: Customer[] };
+  | { type: 'BULK_ADD_CUSTOMERS'; payload: Customer[] }
+  | { type: 'UPDATE_CUSTOMER'; payload: Customer };

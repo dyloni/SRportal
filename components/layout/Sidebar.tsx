@@ -13,7 +13,6 @@ const agentLinks = [
   { name: 'Customers', path: '/customers' },
   { name: 'New Policy', path: '/new-policy' },
   { name: 'Make Payment', path: '/payment' },
-  { name: 'My Requests', path: '/requests' },
   { name: 'Messages', path: '/messages' },
   { name: 'My Profile', path: '/profile' },
 ];
@@ -23,7 +22,7 @@ const adminLinks = [
   { name: 'Sales Analytics', path: '/sales' },
   { name: 'Agents', path: '/agents' },
   { name: 'Customers', path: '/customers' },
-  { name: 'Manage Requests', path: '/requests' },
+  { name: 'Claims', path: '/claims' },
   { name: 'Messages', path: '/messages' },
   { name: 'My Profile', path: '/profile' },
 ];

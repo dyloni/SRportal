@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { faker } from '@faker-js/faker';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
-import { 
-    FuneralPackage, MedicalPackage, CashBackAddon, PaymentMethod, 
-    Participant, NewPolicyRequest, RequestType, RequestStatus, NewPolicyRequestData 
+import {
+    FuneralPackage, MedicalPackage, CashBackAddon, PaymentMethod,
+    Participant, Customer, PolicyStatus
 } from '../../types';
 import { FUNERAL_PACKAGE_DETAILS, MEDICAL_PACKAGE_DETAILS, CASH_BACK_DETAILS } from '../../constants';
 import { calculatePremiumComponents } from '../../utils/policyHelpers';
@@ -28,12 +29,30 @@ const FormSelect: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { lab
     </div>
 );
 
+interface PolicyFormData {
+    firstName: string;
+    surname: string;
+    idNumber: string;
+    dateOfBirth: string;
+    gender: 'Male' | 'Female';
+    phone: string;
+    email: string;
+    streetAddress: string;
+    town: string;
+    postalAddress: string;
+    participants: Omit<Participant, 'id' | 'uuid'>[];
+    funeralPackage: FuneralPackage;
+    paymentMethod: PaymentMethod;
+    receiptFilename: string;
+    idPhotoFilename: string;
+}
+
 const NewPolicyPage: React.FC = () => {
     const { user } = useAuth();
-    const { dispatchWithOffline } = useData();
+    const { state, dispatch } = useData();
     const navigate = useNavigate();
 
-    const [formData, setFormData] = useState<Omit<NewPolicyRequestData, 'cashBackAddon'>>({
+    const [formData, setFormData] = useState<PolicyFormData>({
         firstName: '',
         surname: '',
         idNumber: '',
@@ -139,25 +158,57 @@ const NewPolicyPage: React.FC = () => {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!user) return;
-        
-        const { totalPremium } = premiumComponents;
 
-        const newRequest: NewPolicyRequest = {
-            id: Date.now(),
-            agentId: user.id,
-            requestType: RequestType.NEW_POLICY,
-            status: RequestStatus.PENDING,
-            createdAt: new Date().toISOString(),
-            customerData: formData,
-            idPhotoFilename: formData.idPhotoFilename,
-            paymentAmount: totalPremium,
-            paymentMethod: formData.paymentMethod,
-            receiptFilename: formData.receiptFilename,
+        const idNumber = formData.idNumber;
+        const policyNumber = idNumber.replace(/[^a-zA-Z0-9]/g, '');
+
+        if (state.customers.some(c => c.policyNumber === policyNumber)) {
+            alert(`Policy number ${policyNumber} already exists. Please use a different ID number.`);
+            return;
+        }
+
+        const newCustomerId = Math.max(0, ...state.customers.map(c => c.id)) + 1;
+        const newParticipantStartId = Math.max(0, ...state.customers.flatMap(c => c.participants).map(p => p.id)) + 1;
+        const inceptionDate = new Date();
+        const coverDate = new Date(inceptionDate);
+        coverDate.setMonth(coverDate.getMonth() + 3);
+
+        const newCustomer: Customer = {
+            id: newCustomerId,
+            uuid: faker.string.uuid(),
+            policyNumber,
+            firstName: formData.firstName,
+            surname: formData.surname,
+            inceptionDate: inceptionDate.toISOString(),
+            coverDate: coverDate.toISOString(),
+            status: PolicyStatus.ACTIVE,
+            assignedAgentId: user.id,
+            idNumber: formData.idNumber,
+            dateOfBirth: formData.dateOfBirth,
+            gender: formData.gender,
+            phone: formData.phone,
+            email: formData.email,
+            streetAddress: formData.streetAddress,
+            town: formData.town,
+            postalAddress: formData.postalAddress,
+            funeralPackage: formData.funeralPackage,
+            participants: formData.participants.map((p, index): Participant => ({
+                ...p,
+                id: newParticipantStartId + index,
+                uuid: faker.string.uuid(),
+            })),
+            policyPremium: premiumComponents.policyPremium,
+            addonPremium: premiumComponents.addonPremium,
+            totalPremium: premiumComponents.totalPremium,
+            premiumPeriod: inceptionDate.toLocaleString('default', { month: 'long', year: 'numeric' }),
+            latestReceiptDate: inceptionDate.toISOString(),
+            dateCreated: inceptionDate.toISOString(),
+            lastUpdated: new Date().toISOString(),
         };
 
-        dispatchWithOffline({ type: 'ADD_REQUEST', payload: newRequest });
-        alert('New policy request submitted for approval!');
-        navigate('/requests');
+        dispatch({ type: 'BULK_ADD_CUSTOMERS', payload: [newCustomer] });
+        alert('New policy created successfully!');
+        navigate('/customers');
     };
 
     const selectedPackageDetails = FUNERAL_PACKAGE_DETAILS[formData.funeralPackage];
