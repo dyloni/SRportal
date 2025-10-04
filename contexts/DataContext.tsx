@@ -52,6 +52,34 @@ const dataReducer = (state: AppState, action: Action): AppState => {
         case 'UPDATE_REQUEST': {
             const updatedRequest = action.payload;
 
+            // If a payment request is approved, update customer status to ACTIVE
+            if (updatedRequest.requestType === RequestType.MAKE_PAYMENT && updatedRequest.status === RequestStatus.APPROVED) {
+                const originalRequest = state.requests.find(r => r.id === updatedRequest.id);
+                if (originalRequest?.requestType !== RequestType.MAKE_PAYMENT) {
+                    return { ...state, requests: state.requests.map(req => req.id === updatedRequest.id ? updatedRequest : req) };
+                }
+
+                const customerId = originalRequest.customerId;
+                const updatedCustomers = state.customers.map(customer => {
+                    if (customer.id === customerId) {
+                        return {
+                            ...customer,
+                            status: PolicyStatus.ACTIVE,
+                            latestReceiptDate: new Date().toISOString(),
+                            premiumPeriod: originalRequest.paymentPeriod,
+                            lastUpdated: new Date().toISOString(),
+                        };
+                    }
+                    return customer;
+                });
+
+                return {
+                    ...state,
+                    customers: updatedCustomers,
+                    requests: state.requests.map(req => req.id === updatedRequest.id ? updatedRequest : req),
+                };
+            }
+
             // If a new policy request is approved, create a new customer from the request data
             if (updatedRequest.requestType === RequestType.NEW_POLICY && updatedRequest.status === RequestStatus.APPROVED) {
                 
@@ -343,6 +371,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         const newCustomer = state.customers.find(c => !CUSTOMERS.some(ic => ic.id === c.id));
                         if (newCustomer) {
                             await supabaseService.saveCustomer(newCustomer);
+                        }
+                    }
+                    if (action.payload.requestType === RequestType.MAKE_PAYMENT && action.payload.status === RequestStatus.APPROVED) {
+                        const updatedCustomer = stateRef.current.customers.find(c => c.id === action.payload.customerId);
+                        if (updatedCustomer) {
+                            await supabaseService.saveCustomer(updatedCustomer);
                         }
                     }
                     break;
