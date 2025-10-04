@@ -7,11 +7,9 @@ export enum AdminRole {
 }
 
 export enum FuneralPackage {
-    STANDARD = 'Standard Funeral Plan',
-    PREMIUM = 'Premium Funeral Plan',
-    PLATINUM = 'Platinum Funeral Plan',
-    MUSLIM_STANDARD = 'Muslim Standard Plan',
-    ALKAANE = 'Alkaane Plan',
+    LITE = 'Chitomborwizi Lite',
+    STANDARD = 'Chitomborwizi Standard',
+    PREMIUM = 'Chitomborwizi Premium',
 }
 
 export enum MedicalPackage {

@@ -20,30 +20,50 @@ export const ADMINS: Admin[] = [
 ];
 
 export const FUNERAL_PACKAGE_DETAILS: Record<string, { description: string; benefits: string[], rules?: string[] }> = {
+    [FuneralPackage.LITE]: {
+        description: "Affordable coverage for your entire family with essential funeral services.",
+        benefits: [
+            "$2.50 per head benefit",
+            "2 Tier Casket",
+            "$50 Grocery voucher",
+            "Hearse within 50km radius",
+            "Bus transportation at $1.50 per km",
+            "Grave equipment included"
+        ],
+        rules: [
+            "Family package price: $5.00 per month",
+            "Covers: Member, Spouse, and up to 4 Biological Children"
+        ]
+    },
     [FuneralPackage.STANDARD]: {
-        description: "Our essential plan, covering basic funeral expenses and services.",
-        benefits: ["$2,500 Payout", "Basic Casket", "Transportation (50km radius)"],
-        rules: ["Base cost of $2.50 for policyholder.", "Each additional member is $1.25."]
+        description: "Enhanced coverage with better benefits and quality casket options.",
+        benefits: [
+            "$4.00 per head benefit",
+            "Boston Dome Casket",
+            "$80 Grocery voucher",
+            "Hearse transportation",
+            "Bus transportation at $1.50 per km",
+            "Grave equipment included"
+        ],
+        rules: [
+            "Family package price: $8.00 per month",
+            "Covers: Member, Spouse, and up to 4 Biological Children"
+        ]
     },
     [FuneralPackage.PREMIUM]: {
-        description: "An enhanced plan with higher payouts and additional benefits for your family.",
-        benefits: ["$5,000 Payout", "Standard Casket", "Transportation (100km radius)", "Catering Vouchers"],
-        rules: ["Base cost of $5.00 for policyholder.", "Each additional member is $2.50."]
-    },
-    [FuneralPackage.PLATINUM]: {
-        description: "Our most comprehensive plan, offering maximum support and luxury services.",
-        benefits: ["$10,000 Payout", "Executive Casket", "Nationwide Transportation", "Full Catering Service", "Tombstone Voucher"],
-        rules: ["Base cost of $10.00 for policyholder.", "Each additional member is $5.00."]
-    },
-    [FuneralPackage.MUSLIM_STANDARD]: {
-        description: "A plan designed to meet the specific needs of the Muslim community.",
-        benefits: ["Full burial cost coverage", "Adherence to religious customs", "Support for family"],
-        rules: ["Base cost of $5.00 covers policyholder and one spouse.", "Each additional member (spouse, child, dependent) is $2.50.", "A single policyholder is $2.50."]
-    },
-    [FuneralPackage.ALKAANE]: {
-        description: "A premium funeral plan with a cash-back benefit for long-term, claim-free members.",
-        benefits: ["Funeral cover", "Cash-back benefits after a no-claim period"],
-        rules: ["Cost is $18.00 per person (policyholder and all dependents)."]
+        description: "Comprehensive coverage with premium benefits and full transportation support.",
+        benefits: [
+            "$7.50 per head benefit",
+            "Wrap Around Dome Casket",
+            "$150 Grocery voucher",
+            "Hearse transportation",
+            "Bus transportation included",
+            "Grave equipment included"
+        ],
+        rules: [
+            "Family package price: $15.00 per month",
+            "Covers: Member, Spouse, and up to 4 Biological Children"
+        ]
     }
 };
 

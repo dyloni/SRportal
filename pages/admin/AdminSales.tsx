@@ -60,11 +60,9 @@ const AdminSales: React.FC = () => {
 
     const packageBreakdown = useMemo(() => {
         const breakdown: Record<string, { count: number; revenue: number }> = {
+            [FuneralPackage.LITE]: { count: 0, revenue: 0 },
             [FuneralPackage.STANDARD]: { count: 0, revenue: 0 },
             [FuneralPackage.PREMIUM]: { count: 0, revenue: 0 },
-            [FuneralPackage.PLATINUM]: { count: 0, revenue: 0 },
-            [FuneralPackage.MUSLIM_STANDARD]: { count: 0, revenue: 0 },
-            [FuneralPackage.ALKAANE]: { count: 0, revenue: 0 },
         };
 
         state.customers.forEach(customer => {

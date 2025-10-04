@@ -1,11 +1,10 @@
 import { Customer, Participant, FuneralPackage, MedicalPackage, CashBackAddon, AppRequest, RequestType, RequestStatus } from '../types';
 import { MEDICAL_PACKAGE_DETAILS, CASH_BACK_DETAILS } from '../constants';
 
-const packagePremiums: Record<string, { base?: number; perDependent?: number; perPerson?: number }> = {
-    [FuneralPackage.STANDARD]: { base: 2.50, perDependent: 1.25 },
-    [FuneralPackage.PREMIUM]: { base: 5.00, perDependent: 2.50 },
-    [FuneralPackage.PLATINUM]: { base: 10.00, perDependent: 5.00 },
-    [FuneralPackage.ALKAANE]: { perPerson: 18.00 },
+const packagePremiums: Record<string, { familyRate: number }> = {
+    [FuneralPackage.LITE]: { familyRate: 5.00 },
+    [FuneralPackage.STANDARD]: { familyRate: 8.00 },
+    [FuneralPackage.PREMIUM]: { familyRate: 15.00 },
 };
 
 // FIX: Define a more specific type for premium calculation to avoid broad Partial<Customer> type and casting issues.
@@ -14,51 +13,15 @@ interface PremiumCalculationInput {
     participants?: Partial<Participant>[];
 }
 
-// Calculates the monthly premium components for a customer
-// FIX: Changed parameter type to be more specific and accommodate different shapes of customer/form data.
 export const calculatePremiumComponents = (customer: PremiumCalculationInput): { policyPremium: number, addonPremium: number, totalPremium: number } => {
     let policyPremium = 0;
     let addonPremium = 0;
     const participants = customer.participants || [];
-    const participantCount = participants.length;
 
-    // --- Policy Premium Calculation ---
-    if (customer.funeralPackage === FuneralPackage.MUSLIM_STANDARD) {
-        const spouseCount = participants.filter(p => p.relationship === 'Spouse').length;
-        const childrenAndDependentsCount = participants.filter(p => p.relationship === 'Child' || p.relationship === 'Other Dependent').length;
-        
-        if (participantCount > 0 && spouseCount > 0) {
-            // Base price covers holder + 1 spouse
-            policyPremium = 5.00; 
-            // Add cost for additional spouses
-            if (spouseCount > 1) {
-                policyPremium += (spouseCount - 1) * 2.50;
-            }
-             // Add cost for children and other dependents
-            policyPremium += childrenAndDependentsCount * 2.50;
-        } else if (participantCount > 0) {
-             // Holder only price
-            policyPremium = 2.50;
-            // Add cost for children and other dependents
-            policyPremium += childrenAndDependentsCount * 2.50;
-        }
-    } else if (customer.funeralPackage && packagePremiums[customer.funeralPackage]) {
-        const plan = packagePremiums[customer.funeralPackage];
-        if (plan.perPerson) {
-            // Per-person plans like Alkaane
-            policyPremium = participantCount * plan.perPerson;
-        } else if (plan.base && participantCount > 0) {
-            // Base + per-dependent plans
-            policyPremium = plan.base;
-            const dependentCount = participantCount - 1;
-            if (dependentCount > 0 && plan.perDependent) {
-                policyPremium += dependentCount * plan.perDependent;
-            }
-        }
+    if (customer.funeralPackage && packagePremiums[customer.funeralPackage]) {
+        policyPremium = packagePremiums[customer.funeralPackage].familyRate;
     }
-    
-    // --- Addon Premium Calculation ---
-    // Medical Aid and Cash Back are now per-participant
+
     participants.forEach(p => {
         if (p.medicalPackage && MEDICAL_PACKAGE_DETAILS[p.medicalPackage]) {
             addonPremium += MEDICAL_PACKAGE_DETAILS[p.medicalPackage].price;
@@ -67,7 +30,7 @@ export const calculatePremiumComponents = (customer: PremiumCalculationInput): {
             addonPremium += CASH_BACK_DETAILS[p.cashBackAddon].price;
         }
     });
-    
+
     return {
         policyPremium,
         addonPremium,
