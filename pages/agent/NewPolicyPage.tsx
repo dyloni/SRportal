@@ -192,12 +192,12 @@ const NewPolicyPage: React.FC = () => {
             const participantsWithIds = formData.participants.map((p, idx) => ({
                 ...p,
                 id: nextId * 1000 + idx,
-                uuid: `${nextId}-${idx}-${Date.now()}`
+                uuid: crypto.randomUUID()
             }));
 
             const newCustomer: Customer = {
                 id: nextId,
-                uuid: `cust-${nextId}-${Date.now()}`,
+                uuid: crypto.randomUUID(),
                 policyNumber,
                 firstName: formData.firstName,
                 surname: formData.surname,
@@ -228,7 +228,6 @@ const NewPolicyPage: React.FC = () => {
                 .from('customers')
                 .insert({
                     id: newCustomer.id,
-                    uuid: newCustomer.uuid,
                     policy_number: newCustomer.policyNumber,
                     first_name: newCustomer.firstName,
                     surname: newCustomer.surname,
