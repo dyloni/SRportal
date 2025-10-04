@@ -2,14 +2,15 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
-import { 
-    FuneralPackage, MedicalPackage, CashBackAddon, PaymentMethod, 
-    Participant, NewPolicyRequest, RequestType, RequestStatus, NewPolicyRequestData 
+import {
+    FuneralPackage, MedicalPackage, CashBackAddon, PaymentMethod,
+    Participant, Customer, PolicyStatus
 } from '../../types';
 import { FUNERAL_PACKAGE_DETAILS, MEDICAL_PACKAGE_DETAILS, CASH_BACK_DETAILS } from '../../constants';
 import { calculatePremiumComponents } from '../../utils/policyHelpers';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import { supabase } from '../../utils/supabase';
 
 // Reusing form component style from other modals/pages
 const FormInput: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: string }> = ({ label, ...props }) => (
@@ -136,28 +137,114 @@ const NewPolicyPage: React.FC = () => {
         });
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user) return;
-        
-        const { totalPremium } = premiumComponents;
 
-        const newRequest: NewPolicyRequest = {
-            id: Date.now(),
-            agentId: user.id,
-            requestType: RequestType.NEW_POLICY,
-            status: RequestStatus.PENDING,
-            createdAt: new Date().toISOString(),
-            customerData: formData,
-            idPhotoFilename: formData.idPhotoFilename,
-            paymentAmount: totalPremium,
-            paymentMethod: formData.paymentMethod,
-            receiptFilename: formData.receiptFilename,
-        };
+        const { policyPremium, addonPremium, totalPremium } = premiumComponents;
 
-        dispatchWithOffline({ type: 'ADD_REQUEST', payload: newRequest });
-        alert('New policy request submitted for approval!');
-        navigate('/requests');
+        try {
+            const { data: maxIdData } = await supabase
+                .from('customers')
+                .select('id')
+                .order('id', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            const nextId = maxIdData ? maxIdData.id + 1 : 1;
+            const year = new Date().getFullYear().toString().slice(-2);
+            const policyNumber = `SR${year}${String(nextId).padStart(5, '0')}`;
+
+            const { data: existingPolicy } = await supabase
+                .from('customers')
+                .select('policy_number')
+                .eq('policy_number', policyNumber)
+                .maybeSingle();
+
+            if (existingPolicy) {
+                alert('Policy number conflict. Please try again.');
+                return;
+            }
+
+            const today = new Date().toISOString().split('T')[0];
+            const coverDate = new Date();
+            coverDate.setDate(coverDate.getDate() + 30);
+            const coverDateStr = coverDate.toISOString().split('T')[0];
+
+            const participantsWithIds = formData.participants.map((p, idx) => ({
+                ...p,
+                id: nextId * 1000 + idx,
+                uuid: `${nextId}-${idx}-${Date.now()}`
+            }));
+
+            const newCustomer: Customer = {
+                id: nextId,
+                uuid: `cust-${nextId}-${Date.now()}`,
+                policyNumber,
+                firstName: formData.firstName,
+                surname: formData.surname,
+                inceptionDate: today,
+                coverDate: coverDateStr,
+                status: PolicyStatus.ACTIVE,
+                assignedAgentId: user.id,
+                idNumber: formData.idNumber,
+                dateOfBirth: formData.dateOfBirth,
+                gender: formData.gender,
+                phone: formData.phone,
+                email: formData.email,
+                streetAddress: formData.streetAddress,
+                town: formData.town,
+                postalAddress: formData.postalAddress,
+                funeralPackage: formData.funeralPackage,
+                participants: participantsWithIds,
+                policyPremium,
+                addonPremium,
+                totalPremium,
+                premiumPeriod: today,
+                latestReceiptDate: today,
+                dateCreated: today,
+                lastUpdated: today
+            };
+
+            const { error } = await supabase
+                .from('customers')
+                .insert({
+                    id: newCustomer.id,
+                    uuid: newCustomer.uuid,
+                    policy_number: newCustomer.policyNumber,
+                    first_name: newCustomer.firstName,
+                    surname: newCustomer.surname,
+                    inception_date: newCustomer.inceptionDate,
+                    cover_date: newCustomer.coverDate,
+                    status: newCustomer.status,
+                    assigned_agent_id: newCustomer.assignedAgentId,
+                    id_number: newCustomer.idNumber,
+                    date_of_birth: newCustomer.dateOfBirth,
+                    gender: newCustomer.gender,
+                    phone: newCustomer.phone,
+                    email: newCustomer.email,
+                    street_address: newCustomer.streetAddress,
+                    town: newCustomer.town,
+                    postal_address: newCustomer.postalAddress,
+                    funeral_package: newCustomer.funeralPackage,
+                    participants: newCustomer.participants,
+                    policy_premium: newCustomer.policyPremium,
+                    addon_premium: newCustomer.addonPremium,
+                    total_premium: newCustomer.totalPremium,
+                    premium_period: newCustomer.premiumPeriod,
+                    latest_receipt_date: newCustomer.latestReceiptDate,
+                    date_created: newCustomer.dateCreated,
+                    last_updated: newCustomer.lastUpdated
+                });
+
+            if (error) throw error;
+
+            alert(`Policy ${policyNumber} created successfully! The customer is now active in the system.`);
+            navigate('/customers');
+        } catch (error) {
+            console.error('Error creating policy:', error);
+            alert('Error creating policy. Please try again.');
+        }
     };
 
     const selectedPackageDetails = FUNERAL_PACKAGE_DETAILS[formData.funeralPackage];
@@ -289,7 +376,7 @@ const NewPolicyPage: React.FC = () => {
 
             <div className="flex justify-end pt-4">
                 <Button type="submit" className="w-full md:w-auto" disabled={premiumComponents.totalPremium <= 0}>
-                    Submit Application
+                    Create Policy
                 </Button>
             </div>
 
