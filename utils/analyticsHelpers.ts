@@ -1,5 +1,5 @@
-import { Customer, AppRequest, RequestType, RequestStatus } from '../types';
-import { calculateOutstandingBalance } from './policyHelpers';
+import { Customer, AppRequest, RequestType, RequestStatus, Payment } from '../types';
+import { supabase } from './supabase';
 
 export type TimePeriod = 'daily' | 'weekly' | 'monthly';
 
@@ -46,12 +46,13 @@ const isWithinPeriod = (date: string, period: TimePeriod): boolean => {
     return checkDate >= start && checkDate <= end;
 };
 
-export const calculateAnalytics = (
+export const calculateAnalytics = async (
     customers: Customer[],
     requests: AppRequest[],
+    payments: Payment[],
     period: TimePeriod,
     agentId?: number
-): AnalyticsData => {
+): Promise<AnalyticsData> => {
     const filteredCustomers = agentId
         ? customers.filter(c => c.assignedAgentId === agentId)
         : customers;
@@ -59,6 +60,13 @@ export const calculateAnalytics = (
     const filteredRequests = agentId
         ? requests.filter(r => r.agentId === agentId)
         : requests;
+
+    const filteredPayments = agentId
+        ? payments.filter(p => {
+            const customer = customers.find(c => c.id === p.customer_id);
+            return customer && customer.assignedAgentId === agentId;
+        })
+        : payments;
 
     const newCustomers = filteredCustomers.filter(c => isWithinPeriod(c.dateCreated, period)).length;
 
@@ -69,32 +77,31 @@ export const calculateAnalytics = (
     );
     const newPolicies = newPolicyRequests.length;
 
-    const paymentRequests = filteredRequests.filter(
-        r => r.requestType === RequestType.MAKE_PAYMENT &&
-             r.status === RequestStatus.APPROVED &&
-             isWithinPeriod(r.createdAt, period)
-    );
+    const periodPayments = filteredPayments.filter(p => isWithinPeriod(p.payment_date, period));
 
-    const totalRevenue = paymentRequests.reduce((sum, req) => {
-        if (req.requestType === RequestType.MAKE_PAYMENT) {
-            return sum + req.paymentAmount;
-        }
-        return sum;
+    const totalRevenue = periodPayments.reduce((sum, payment) => {
+        return sum + parseFloat(payment.payment_amount);
     }, 0);
 
-    const paymentsReceived = paymentRequests.length;
+    const paymentsReceived = periodPayments.length;
 
     let totalOutstandingBalance = 0;
     let activeCustomers = 0;
     let overdueCustomers = 0;
     let inactiveCustomers = 0;
 
-    filteredCustomers.forEach(customer => {
-        const { balance, monthsDue } = calculateOutstandingBalance(customer, requests);
-        totalOutstandingBalance += balance;
+    for (const customer of filteredCustomers) {
+        const customerPayments = payments.filter(p => p.customer_id === customer.id);
+        const paymentCount = customerPayments.length;
+        const policyStartDate = new Date(customer.inceptionDate);
+        const today = new Date();
+        const monthsSinceStart = ((today.getFullYear() - policyStartDate.getFullYear()) * 12) + (today.getMonth() - policyStartDate.getMonth()) + 1;
+        const monthsDue = monthsSinceStart - paymentCount;
+        const outstandingBalance = monthsDue > 0 ? monthsDue * customer.totalPremium : 0;
+        totalOutstandingBalance += outstandingBalance;
 
         if (customer.status === 'Cancelled') {
-            return;
+            continue;
         }
 
         if (monthsDue >= 2) {
@@ -104,7 +111,7 @@ export const calculateAnalytics = (
         } else {
             activeCustomers++;
         }
-    });
+    }
 
     const requestsInPeriod = filteredRequests.filter(r => isWithinPeriod(r.createdAt, period));
     const approvedRequests = requestsInPeriod.filter(r => r.status === RequestStatus.APPROVED).length;

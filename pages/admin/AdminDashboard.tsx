@@ -1,40 +1,60 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useData } from '../../contexts/DataContext';
 import Card from '../../components/ui/Card';
 import { Link } from 'react-router-dom';
 import TimePeriodSelector from '../../components/analytics/TimePeriodSelector';
 import AnalyticsCard from '../../components/analytics/AnalyticsCard';
-import { calculateAnalytics, getPeriodLabel, TimePeriod } from '../../utils/analyticsHelpers';
+import { calculateAnalytics, getPeriodLabel, TimePeriod, AnalyticsData } from '../../utils/analyticsHelpers';
 import { RequestType } from '../../types';
 
 const AdminDashboard: React.FC = () => {
     const { state } = useData();
     const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('daily');
+    const [analytics, setAnalytics] = useState<AnalyticsData>({
+        newCustomers: 0,
+        newPolicies: 0,
+        totalRevenue: 0,
+        paymentsReceived: 0,
+        outstandingBalance: 0,
+        activeCustomers: 0,
+        overdueCustomers: 0,
+        inactiveCustomers: 0,
+        approvedRequests: 0,
+        pendingRequests: 0,
+        rejectedRequests: 0,
+    });
+    const [topAgents, setTopAgents] = useState<any[]>([]);
 
     const totalCustomers = state.customers.length;
     const totalAgents = state.agents.length;
     const pendingRequests = state.requests.filter(r => r.status === 'Pending').length;
 
-    const analytics = useMemo(() =>
-        calculateAnalytics(state.customers, state.requests, selectedPeriod),
-        [state.customers, state.requests, selectedPeriod]
-    );
+    useEffect(() => {
+        const loadAnalytics = async () => {
+            const data = await calculateAnalytics(state.customers, state.requests, state.payments, selectedPeriod);
+            setAnalytics(data);
+        };
+        loadAnalytics();
+    }, [state.customers, state.requests, state.payments, selectedPeriod]);
+
+    useEffect(() => {
+        const loadTopAgents = async () => {
+            const agentStats = await Promise.all(state.agents.map(async (agent) => {
+                const agentCustomers = state.customers.filter(c => c.assignedAgentId === agent.id);
+                const agentAnalytics = await calculateAnalytics(state.customers, state.requests, state.payments, selectedPeriod, agent.id);
+                return {
+                    agent,
+                    customerCount: agentCustomers.length,
+                    newCustomers: agentAnalytics.newCustomers,
+                    revenue: agentAnalytics.totalRevenue,
+                };
+            }));
+            setTopAgents(agentStats.sort((a, b) => b.revenue - a.revenue).slice(0, 5));
+        };
+        loadTopAgents();
+    }, [state.agents, state.customers, state.requests, state.payments, selectedPeriod]);
 
     const periodLabel = getPeriodLabel(selectedPeriod);
-
-    const topAgents = useMemo(() => {
-        const agentStats = state.agents.map(agent => {
-            const agentCustomers = state.customers.filter(c => c.assignedAgentId === agent.id);
-            const agentAnalytics = calculateAnalytics(state.customers, state.requests, selectedPeriod, agent.id);
-            return {
-                agent,
-                customerCount: agentCustomers.length,
-                newCustomers: agentAnalytics.newCustomers,
-                revenue: agentAnalytics.totalRevenue,
-            };
-        });
-        return agentStats.sort((a, b) => b.revenue - a.revenue).slice(0, 5);
-    }, [state.agents, state.customers, state.requests, selectedPeriod]);
 
     return (
         <div>

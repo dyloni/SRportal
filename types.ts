@@ -138,6 +138,20 @@ export interface Customer {
     lastUpdated: string;
 }
 
+export interface Payment {
+    id: number;
+    customer_id: number;
+    policy_number: string;
+    payment_amount: string;
+    payment_method: PaymentMethod;
+    payment_period: string;
+    receipt_filename: string | null;
+    recorded_by_agent_id: number | null;
+    payment_date: string;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface Claim {
     id: number;
     customer_id: number;
@@ -247,9 +261,11 @@ export type AppRequest = NewPolicyRequest | EditCustomerDetailsRequest | AddDepe
 // --- REDUCER ACTION TYPE ---
 
 export type Action =
-  | { type: 'SET_INITIAL_DATA'; payload: { customers: Customer[]; requests: AppRequest[]; messages: ChatMessage[] } }
+  | { type: 'SET_INITIAL_DATA'; payload: { customers: Customer[]; requests: AppRequest[]; messages: ChatMessage[]; payments?: Payment[] } }
   | { type: 'ADD_REQUEST'; payload: AppRequest }
   | { type: 'UPDATE_REQUEST'; payload: AppRequest }
   | { type: 'SEND_MESSAGE'; payload: ChatMessage }
   | { type: 'MARK_MESSAGES_AS_READ'; payload: { chatPartnerId: number | 'admin'; currentUserId: number | 'admin' } }
-  | { type: 'BULK_ADD_CUSTOMERS'; payload: Customer[] };
+  | { type: 'BULK_ADD_CUSTOMERS'; payload: Customer[] }
+  | { type: 'ADD_PAYMENT'; payload: Payment }
+  | { type: 'SET_PAYMENTS'; payload: Payment[] };

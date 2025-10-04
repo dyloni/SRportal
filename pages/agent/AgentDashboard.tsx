@@ -1,16 +1,29 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import Card from '../../components/ui/Card';
 import { Link } from 'react-router-dom';
 import TimePeriodSelector from '../../components/analytics/TimePeriodSelector';
 import AnalyticsCard from '../../components/analytics/AnalyticsCard';
-import { calculateAnalytics, getPeriodLabel, TimePeriod } from '../../utils/analyticsHelpers';
+import { calculateAnalytics, getPeriodLabel, TimePeriod, AnalyticsData } from '../../utils/analyticsHelpers';
 
 const AgentDashboard: React.FC = () => {
     const { user } = useAuth();
     const { state } = useData();
     const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('daily');
+    const [analytics, setAnalytics] = useState<AnalyticsData>({
+        newCustomers: 0,
+        newPolicies: 0,
+        totalRevenue: 0,
+        paymentsReceived: 0,
+        outstandingBalance: 0,
+        activeCustomers: 0,
+        overdueCustomers: 0,
+        inactiveCustomers: 0,
+        approvedRequests: 0,
+        pendingRequests: 0,
+        rejectedRequests: 0,
+    });
 
     if (!user) return null;
 
@@ -18,10 +31,13 @@ const AgentDashboard: React.FC = () => {
     const myRequests = state.requests.filter(r => r.agentId === user.id);
     const pendingRequests = myRequests.filter(r => r.status === 'Pending').length;
 
-    const analytics = useMemo(() =>
-        calculateAnalytics(state.customers, state.requests, selectedPeriod, user.id),
-        [state.customers, state.requests, selectedPeriod, user.id]
-    );
+    useEffect(() => {
+        const loadAnalytics = async () => {
+            const data = await calculateAnalytics(state.customers, state.requests, state.payments, selectedPeriod, user.id);
+            setAnalytics(data);
+        };
+        loadAnalytics();
+    }, [state.customers, state.requests, state.payments, selectedPeriod, user.id]);
 
     const periodLabel = getPeriodLabel(selectedPeriod);
 

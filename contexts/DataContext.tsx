@@ -1,6 +1,6 @@
 import React, { createContext, useReducer, useContext, ReactNode, useEffect, useRef, useCallback } from 'react';
 import { faker } from '@faker-js/faker';
-import { AppRequest, Customer, ChatMessage, Agent, Admin, Action, RequestType, RequestStatus, PolicyStatus, Participant } from '../types';
+import { AppRequest, Customer, ChatMessage, Agent, Admin, Action, RequestType, RequestStatus, PolicyStatus, Participant, Payment } from '../types';
 import { AGENTS, ADMINS, CUSTOMERS, REQUESTS, MESSAGES } from '../constants';
 import * as db from '../utils/db';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
@@ -13,6 +13,7 @@ interface AppState {
     customers: Customer[];
     requests: AppRequest[];
     messages: ChatMessage[];
+    payments: Payment[];
 }
 
 interface DataContextType {
@@ -30,6 +31,7 @@ const initialState: AppState = {
     customers: CUSTOMERS,
     requests: REQUESTS,
     messages: MESSAGES,
+    payments: [],
 };
 
 const dataReducer = (state: AppState, action: Action): AppState => {
@@ -40,6 +42,7 @@ const dataReducer = (state: AppState, action: Action): AppState => {
                 customers: action.payload.customers,
                 requests: action.payload.requests,
                 messages: action.payload.messages,
+                payments: action.payload.payments || state.payments,
             };
         case 'ADD_REQUEST':
              if (state.requests.some(r => r.id === action.payload.id)) {
@@ -185,6 +188,19 @@ const dataReducer = (state: AppState, action: Action): AppState => {
                 customers: [...state.customers, ...newCustomers],
             };
         }
+        case 'ADD_PAYMENT':
+            if (state.payments.some(p => p.id === action.payload.id)) {
+                return state;
+            }
+            return {
+                ...state,
+                payments: [...state.payments, action.payload],
+            };
+        case 'SET_PAYMENTS':
+            return {
+                ...state,
+                payments: action.payload,
+            };
         default:
             return state;
     }
@@ -211,16 +227,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             isInitialized.current = true;
 
             try {
-                const [customers, requests, messages] = await Promise.all([
+                const [customers, requests, messages, payments] = await Promise.all([
                     supabaseService.loadCustomers(),
                     supabaseService.loadRequests(),
                     supabaseService.loadMessages(),
+                    supabaseService.loadPayments(),
                 ]);
 
-                if (customers.length > 0 || requests.length > 0 || messages.length > 0) {
+                if (customers.length > 0 || requests.length > 0 || messages.length > 0 || payments.length > 0) {
                     internalDispatch({
                         type: 'SET_INITIAL_DATA',
-                        payload: { customers, requests, messages },
+                        payload: { customers, requests, messages, payments },
                     });
                 } else {
                     await Promise.all([
@@ -231,7 +248,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                     internalDispatch({
                         type: 'SET_INITIAL_DATA',
-                        payload: { customers: CUSTOMERS, requests: REQUESTS, messages: MESSAGES },
+                        payload: { customers: CUSTOMERS, requests: REQUESTS, messages: MESSAGES, payments: [] },
                     });
                 }
             } catch (error) {
@@ -259,6 +276,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         customers: stateRef.current.customers.map(c => c.id === customer.id ? customer : c),
                         requests: stateRef.current.requests,
                         messages: stateRef.current.messages,
+                        payments: stateRef.current.payments,
                     },
                 });
             },
@@ -270,6 +288,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         customers: stateRef.current.customers.filter(c => c.id !== id),
                         requests: stateRef.current.requests,
                         messages: stateRef.current.messages,
+                        payments: stateRef.current.payments,
                     },
                 });
             }
@@ -298,6 +317,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         customers: stateRef.current.customers,
                         requests: stateRef.current.requests.filter(r => r.id !== id),
                         messages: stateRef.current.messages,
+                        payments: stateRef.current.payments,
                     },
                 });
             }
@@ -319,6 +339,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         customers: stateRef.current.customers,
                         requests: stateRef.current.requests,
                         messages: stateRef.current.messages.map(m => m.id === message.id ? message : m),
+                        payments: stateRef.current.payments,
                     },
                 });
             },
@@ -330,7 +351,32 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         customers: stateRef.current.customers,
                         requests: stateRef.current.requests,
                         messages: stateRef.current.messages.filter(m => m.id !== id),
+                        payments: stateRef.current.payments,
                     },
+                });
+            }
+        );
+
+        supabaseService.subscribeToPayments(
+            (payment) => {
+                console.log('Real-time: Payment inserted', payment);
+                internalDispatch({
+                    type: 'ADD_PAYMENT',
+                    payload: payment,
+                });
+            },
+            (payment) => {
+                console.log('Real-time: Payment updated', payment);
+                internalDispatch({
+                    type: 'SET_PAYMENTS',
+                    payload: stateRef.current.payments.map(p => p.id === payment.id ? payment : p),
+                });
+            },
+            (id) => {
+                console.log('Real-time: Payment deleted', id);
+                internalDispatch({
+                    type: 'SET_PAYMENTS',
+                    payload: stateRef.current.payments.filter(p => p.id !== id),
                 });
             }
         );
