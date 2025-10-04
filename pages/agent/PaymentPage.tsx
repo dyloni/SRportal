@@ -29,6 +29,8 @@ const PaymentPage: React.FC = () => {
     const [paymentAmount, setPaymentAmount] = useState('');
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
     const [receiptFilename, setReceiptFilename] = useState('');
+    const [receiptFile, setReceiptFile] = useState<File | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
     const [balance, setBalance] = useState<{ balance: number; monthsDue: number } | null>(null);
     const [nextPeriod, setNextPeriod] = useState<string>('');
 
@@ -69,9 +71,19 @@ const PaymentPage: React.FC = () => {
         setNextPeriod(nextPaymentDate.toLocaleString('default', { month: 'long', year: 'numeric' }));
     };
     
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setReceiptFile(file);
+            setReceiptFilename(file.name);
+        }
+    };
+
     const handleSubmitPayment = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedCustomer || !user) return;
+
+        setIsUploading(true);
 
         try {
             const { data: allPayments } = await supabase
@@ -85,6 +97,27 @@ const PaymentPage: React.FC = () => {
             nextPaymentDate.setMonth(policyStartDate.getMonth() + paymentCount);
             const paymentPeriod = nextPaymentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 
+            let uploadedReceiptUrl: string | null = null;
+
+            if (receiptFile) {
+                const fileExt = receiptFile.name.split('.').pop();
+                const fileName = `${selectedCustomer.policyNumber}_${Date.now()}.${fileExt}`;
+                const filePath = `receipts/${fileName}`;
+
+                const { error: uploadError } = await supabase.storage
+                    .from('payment-receipts')
+                    .upload(filePath, receiptFile);
+
+                if (uploadError) {
+                    console.error('Error uploading receipt:', uploadError);
+                } else {
+                    const { data: urlData } = supabase.storage
+                        .from('payment-receipts')
+                        .getPublicUrl(filePath);
+                    uploadedReceiptUrl = urlData.publicUrl;
+                }
+            }
+
             const { error: paymentError } = await supabase
                 .from('payments')
                 .insert({
@@ -93,7 +126,7 @@ const PaymentPage: React.FC = () => {
                     payment_amount: parseFloat(paymentAmount),
                     payment_method: paymentMethod,
                     payment_period: paymentPeriod,
-                    receipt_filename: receiptFilename || null,
+                    receipt_filename: uploadedReceiptUrl || receiptFilename || null,
                     recorded_by_agent_id: user.id,
                     payment_date: new Date().toISOString(),
                 });
@@ -117,6 +150,8 @@ const PaymentPage: React.FC = () => {
         } catch (error) {
             console.error('Error recording payment:', error);
             alert('Error recording payment. Please try again.');
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -167,10 +202,29 @@ const PaymentPage: React.FC = () => {
                                 </FormSelect>
                              </div>
                               <div>
-                                <label className="block text-base font-semibold text-brand-text-secondary mb-2">Receipt Reference/Filename</label>
-                                <FormInput type="text" value={receiptFilename} onChange={(e) => setReceiptFilename(e.target.value)} required />
+                                <label className="block text-base font-semibold text-brand-text-secondary mb-2">Upload Receipt (Optional)</label>
+                                <input
+                                    type="file"
+                                    accept="image/*,.pdf"
+                                    onChange={handleFileChange}
+                                    className="block w-full px-4 py-3 text-brand-text-primary bg-brand-surface border border-brand-border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-pink focus:border-brand-pink"
+                                />
+                                {receiptFilename && (
+                                    <p className="mt-2 text-sm text-brand-text-secondary">Selected: {receiptFilename}</p>
+                                )}
                              </div>
-                             <Button type="submit" className="w-full">Submit Payment Request</Button>
+                              <div>
+                                <label className="block text-base font-semibold text-brand-text-secondary mb-2">Receipt Reference (Optional)</label>
+                                <FormInput
+                                    type="text"
+                                    value={receiptFilename}
+                                    onChange={(e) => setReceiptFilename(e.target.value)}
+                                    placeholder="Or enter receipt reference number"
+                                />
+                             </div>
+                             <Button type="submit" disabled={isUploading} className="w-full">
+                                {isUploading ? 'Processing Payment...' : 'Record Payment'}
+                             </Button>
                          </form>
                     </div>
                 )}

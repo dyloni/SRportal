@@ -176,21 +176,33 @@ const AdminDashboard: React.FC = () => {
                     </div>
                 </Card>
 
-                <Card title="Recent Activity">
+                <Card title="Recent Payments">
                     <ul className="space-y-3">
-                        {state.requests.slice(-8).reverse().map(req => {
-                            const agent = state.agents.find(a => a.id === req.agentId);
-                            const statusColor = req.status === 'Approved' ? 'text-green-600' : req.status === 'Pending' ? 'text-orange-600' : 'text-red-600';
+                        {state.payments.slice(-8).reverse().map(payment => {
+                            const customer = state.customers.find(c => c.id === payment.customer_id);
+                            const agent = state.agents.find(a => a.id === payment.recorded_by_agent_id);
                             return (
-                                <li key={req.id} className="border-b last:border-b-0 pb-3 last:pb-0">
+                                <li key={payment.id} className="border-b last:border-b-0 pb-3 last:pb-0">
                                     <div className="flex justify-between items-start">
                                         <div>
-                                            <p className="font-semibold text-sm text-brand-text-primary">{req.requestType}</p>
+                                            <p className="font-semibold text-sm text-brand-text-primary">
+                                                {customer ? `${customer.firstName} ${customer.surname}` : payment.policy_number}
+                                            </p>
                                             <p className="text-xs text-brand-text-secondary">
-                                                by {agent ? `${agent.firstName} ${agent.surname}` : `Agent ${req.agentId}`}
+                                                {payment.payment_period} · {payment.payment_method}
+                                            </p>
+                                            {agent && (
+                                                <p className="text-xs text-brand-text-secondary">
+                                                    by {agent.firstName} {agent.surname}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-bold text-green-600">${parseFloat(payment.payment_amount).toFixed(2)}</p>
+                                            <p className="text-xs text-brand-text-secondary">
+                                                {new Date(payment.payment_date).toLocaleDateString()}
                                             </p>
                                         </div>
-                                        <span className={`text-xs font-semibold ${statusColor}`}>{req.status}</span>
                                     </div>
                                 </li>
                             );
