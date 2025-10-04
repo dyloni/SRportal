@@ -6,9 +6,18 @@ interface ChatInterfaceProps {
     messages: ChatMessage[];
     currentUserId: number | 'admin';
     onSendMessage: (text: string) => void;
+    onTyping?: () => void;
+    isPartnerTyping?: boolean;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ chatPartnerName, messages, currentUserId, onSendMessage }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({
+    chatPartnerName,
+    messages,
+    currentUserId,
+    onSendMessage,
+    onTyping,
+    isPartnerTyping = false
+}) => {
     const [input, setInput] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -16,7 +25,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ chatPartnerName, messages
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
-    useEffect(scrollToBottom, [messages]);
+    useEffect(scrollToBottom, [messages, isPartnerTyping]);
 
     const handleFormSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -25,20 +34,50 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ chatPartnerName, messages
         setInput('');
     };
 
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setInput(e.target.value);
+        if (onTyping && e.target.value.length > 0) {
+            onTyping();
+        }
+    };
+
     return (
         <>
             <div className="p-4 border-b border-brand-border bg-brand-surface">
                 <h3 className="text-lg font-bold text-brand-text-primary">Chat with {chatPartnerName}</h3>
+                {isPartnerTyping && (
+                    <p className="text-sm text-green-600 italic animate-pulse">typing...</p>
+                )}
             </div>
             <div className="flex-1 p-4 overflow-y-auto bg-brand-bg space-y-4">
                 {messages.map(msg => (
                     <div key={msg.id} className={`flex items-end gap-2 ${msg.senderId === currentUserId ? 'justify-end' : 'justify-start'}`}>
                         <div className={`rounded-2xl px-5 py-3 max-w-lg ${msg.senderId === currentUserId ? 'bg-brand-pink text-white' : 'bg-gray-200 text-brand-text-primary'}`}>
                             <p>{msg.text}</p>
-                            <p className={`text-xs mt-1 text-right ${msg.senderId === currentUserId ? 'text-pink-200' : 'text-gray-500'}`}>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                            <div className="flex items-center justify-end gap-2 mt-1">
+                                <p className={`text-xs ${msg.senderId === currentUserId ? 'text-pink-200' : 'text-gray-500'}`}>
+                                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                                {msg.senderId === currentUserId && (
+                                    <span className="text-xs">
+                                        {msg.status === 'read' ? '✓✓' : '✓'}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 ))}
+                {isPartnerTyping && (
+                    <div className="flex items-end gap-2 justify-start">
+                        <div className="rounded-2xl px-5 py-3 bg-gray-200">
+                            <div className="flex gap-1">
+                                <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                                <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                                <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 <div ref={messagesEndRef} />
             </div>
             <form onSubmit={handleFormSubmit} className="p-4 border-t border-brand-border bg-brand-surface">
@@ -46,7 +85,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ chatPartnerName, messages
                     <input
                         type="text"
                         value={input}
-                        onChange={(e) => setInput(e.target.value)}
+                        onChange={handleInputChange}
                         placeholder="Type your message..."
                         className="flex-1 bg-transparent p-4 focus:outline-none text-base text-brand-text-primary"
                     />
