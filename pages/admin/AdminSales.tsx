@@ -1,32 +1,74 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useData } from '../../contexts/DataContext';
 import Card from '../../components/ui/Card';
 import TimePeriodSelector from '../../components/analytics/TimePeriodSelector';
 import AnalyticsCard from '../../components/analytics/AnalyticsCard';
-import { calculateAnalytics, getPeriodLabel, TimePeriod } from '../../utils/analyticsHelpers';
+import { calculateAnalytics, getPeriodLabel, TimePeriod, AnalyticsData } from '../../utils/analyticsHelpers';
 import { RequestType, RequestStatus, FuneralPackage } from '../../types';
 
 const AdminSales: React.FC = () => {
     const { state } = useData();
     const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('monthly');
+    const [analytics, setAnalytics] = useState<AnalyticsData>({
+        newCustomers: 0,
+        newPolicies: 0,
+        totalRevenue: 0,
+        paymentsReceived: 0,
+        outstandingBalance: 0,
+        activeCustomers: 0,
+        overdueCustomers: 0,
+        inactiveCustomers: 0,
+        approvedRequests: 0,
+        pendingRequests: 0,
+        rejectedRequests: 0,
+    });
+    const [agentPerformance, setAgentPerformance] = useState<any[]>([]);
 
-    const analytics = useMemo(() =>
-        calculateAnalytics(state.customers, state.requests, selectedPeriod),
-        [state.customers, state.requests, selectedPeriod]
-    );
+    useEffect(() => {
+        const loadAnalytics = async () => {
+            const data = await calculateAnalytics(state.customers, state.requests, state.payments, selectedPeriod);
+            setAnalytics(data);
+        };
+        loadAnalytics();
+    }, [state.customers, state.requests, state.payments, selectedPeriod]);
+
+    useEffect(() => {
+        const loadAgentPerformance = async () => {
+            const performance = await Promise.all(state.agents.map(async (agent) => {
+                const agentCustomers = state.customers.filter(c => c.assignedAgentId === agent.id);
+                const agentAnalytics = await calculateAnalytics(state.customers, state.requests, state.payments, selectedPeriod, agent.id);
+
+                const totalPremiumValue = agentCustomers.reduce((sum, c) => sum + c.totalPremium, 0);
+
+                return {
+                    agent,
+                    customerCount: agentCustomers.length,
+                    newCustomers: agentAnalytics.newCustomers,
+                    revenue: agentAnalytics.totalRevenue,
+                    newPolicies: agentAnalytics.newPolicies,
+                    totalPremiumValue,
+                    activeCustomers: agentAnalytics.activeCustomers,
+                    overdueCustomers: agentAnalytics.overdueCustomers,
+                };
+            }));
+            setAgentPerformance(performance.sort((a, b) => b.revenue - a.revenue));
+        };
+        loadAgentPerformance();
+    }, [state.agents, state.customers, state.requests, state.payments, selectedPeriod]);
 
     const periodLabel = getPeriodLabel(selectedPeriod);
 
     const packageBreakdown = useMemo(() => {
-        const breakdown: Record<FuneralPackage, { count: number; revenue: number }> = {
-            [FuneralPackage.BRONZE]: { count: 0, revenue: 0 },
-            [FuneralPackage.SILVER]: { count: 0, revenue: 0 },
-            [FuneralPackage.GOLD]: { count: 0, revenue: 0 },
+        const breakdown: Record<string, { count: number; revenue: number }> = {
+            [FuneralPackage.STANDARD]: { count: 0, revenue: 0 },
+            [FuneralPackage.PREMIUM]: { count: 0, revenue: 0 },
             [FuneralPackage.PLATINUM]: { count: 0, revenue: 0 },
+            [FuneralPackage.MUSLIM_STANDARD]: { count: 0, revenue: 0 },
+            [FuneralPackage.ALKAANE]: { count: 0, revenue: 0 },
         };
 
         state.customers.forEach(customer => {
-            if (customer.funeralPackage) {
+            if (customer.funeralPackage && breakdown[customer.funeralPackage]) {
                 breakdown[customer.funeralPackage].count++;
                 breakdown[customer.funeralPackage].revenue += customer.totalPremium;
             }
@@ -35,40 +77,16 @@ const AdminSales: React.FC = () => {
         return breakdown;
     }, [state.customers]);
 
-    const agentPerformance = useMemo(() => {
-        return state.agents.map(agent => {
-            const agentCustomers = state.customers.filter(c => c.assignedAgentId === agent.id);
-            const agentAnalytics = calculateAnalytics(state.customers, state.requests, selectedPeriod, agent.id);
-
-            const totalPremiumValue = agentCustomers.reduce((sum, c) => sum + c.totalPremium, 0);
-
-            return {
-                agent,
-                customerCount: agentCustomers.length,
-                newCustomers: agentAnalytics.newCustomers,
-                revenue: agentAnalytics.totalRevenue,
-                newPolicies: agentAnalytics.newPolicies,
-                totalPremiumValue,
-                activeCustomers: agentAnalytics.activeCustomers,
-                overdueCustomers: agentAnalytics.overdueCustomers,
-            };
-        }).sort((a, b) => b.revenue - a.revenue);
-    }, [state.agents, state.customers, state.requests, selectedPeriod]);
-
     const revenueByPaymentMethod = useMemo(() => {
         const methodRevenue: Record<string, number> = {};
 
-        state.requests
-            .filter(r => r.requestType === RequestType.MAKE_PAYMENT && r.status === RequestStatus.APPROVED)
-            .forEach(req => {
-                if (req.requestType === RequestType.MAKE_PAYMENT) {
-                    const method = req.paymentMethod;
-                    methodRevenue[method] = (methodRevenue[method] || 0) + req.paymentAmount;
-                }
-            });
+        state.payments.forEach(payment => {
+            const method = payment.payment_method;
+            methodRevenue[method] = (methodRevenue[method] || 0) + parseFloat(payment.payment_amount);
+        });
 
         return Object.entries(methodRevenue).sort((a, b) => b[1] - a[1]);
-    }, [state.requests]);
+    }, [state.payments]);
 
     const monthlyTrend = useMemo(() => {
         const last6Months = [];
@@ -79,18 +97,12 @@ const AdminSales: React.FC = () => {
             const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
             const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59);
 
-            const monthPayments = state.requests
-                .filter(r => {
-                    if (r.requestType !== RequestType.MAKE_PAYMENT || r.status !== RequestStatus.APPROVED) return false;
-                    const reqDate = new Date(r.createdAt);
-                    return reqDate >= monthStart && reqDate <= monthEnd;
+            const monthPayments = state.payments
+                .filter(p => {
+                    const paymentDate = new Date(p.payment_date);
+                    return paymentDate >= monthStart && paymentDate <= monthEnd;
                 })
-                .reduce((sum, req) => {
-                    if (req.requestType === RequestType.MAKE_PAYMENT) {
-                        return sum + req.paymentAmount;
-                    }
-                    return sum;
-                }, 0);
+                .reduce((sum, payment) => sum + parseFloat(payment.payment_amount), 0);
 
             const monthCustomers = state.customers.filter(c => {
                 const createdDate = new Date(c.dateCreated);
@@ -105,7 +117,7 @@ const AdminSales: React.FC = () => {
         }
 
         return last6Months;
-    }, [state.requests, state.customers]);
+    }, [state.payments, state.customers]);
 
     const totalPremiumValue = useMemo(() => {
         return state.customers.reduce((sum, c) => sum + c.totalPremium, 0);
