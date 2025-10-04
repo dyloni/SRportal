@@ -20,6 +20,7 @@ interface DataContextType {
     state: AppState;
     dispatch: React.Dispatch<Action>;
     dispatchWithOffline: (action: Action) => void;
+    refreshData: () => Promise<void>;
 }
 
 // Create a single BroadcastChannel for the entire app
@@ -220,6 +221,24 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Give this tab a unique ID to prevent it from acting on its own messages
     const tabId = useRef(Date.now() + Math.random()).current;
+
+    const refreshData = useCallback(async () => {
+        try {
+            const [customers, requests, messages, payments] = await Promise.all([
+                supabaseService.loadCustomers(),
+                supabaseService.loadRequests(),
+                supabaseService.loadMessages(),
+                supabaseService.loadPayments(),
+            ]);
+
+            internalDispatch({
+                type: 'SET_INITIAL_DATA',
+                payload: { customers, requests, messages, payments },
+            });
+        } catch (error) {
+            console.error('Error refreshing data:', error);
+        }
+    }, []);
 
     useEffect(() => {
         const initializeData = async () => {
@@ -459,7 +478,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     return (
-        <DataContext.Provider value={{ state, dispatch, dispatchWithOffline }}>
+        <DataContext.Provider value={{ state, dispatch, dispatchWithOffline, refreshData }}>
             {children}
         </DataContext.Provider>
     );
