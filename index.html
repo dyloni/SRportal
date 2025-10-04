@@ -34,7 +34,6 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
-        /* Simple stylish scrollbar */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -48,6 +47,14 @@
         }
         ::-webkit-scrollbar-thumb:hover {
             background: #b3b3b3;
+        }
+        @keyframes flash {
+            0% { opacity: 0; }
+            50% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        .animate-flash {
+            animation: flash 0.2s ease-out;
         }
     </style>
 </head>
