@@ -1,5 +1,6 @@
 import { Customer, Participant, FuneralPackage, MedicalPackage, CashBackAddon, AppRequest, RequestType, RequestStatus } from '../types';
 import { MEDICAL_PACKAGE_DETAILS, CASH_BACK_DETAILS } from '../constants';
+import { calculateAgeSurcharge } from './participantHelpers';
 
 const packagePremiums: Record<string, { familyRate: number }> = {
     [FuneralPackage.LITE]: { familyRate: 5.00 },
@@ -23,6 +24,11 @@ export const calculatePremiumComponents = (customer: PremiumCalculationInput): {
     }
 
     participants.forEach(p => {
+        if (p.dateOfBirth && customer.funeralPackage) {
+            const ageSurcharge = calculateAgeSurcharge(p as Participant, customer.funeralPackage);
+            policyPremium += ageSurcharge;
+        }
+
         if (p.medicalPackage && MEDICAL_PACKAGE_DETAILS[p.medicalPackage]) {
             addonPremium += MEDICAL_PACKAGE_DETAILS[p.medicalPackage].price;
         }
@@ -92,17 +98,15 @@ export const getNextPaymentPeriod = (customer: Customer, requests: AppRequest[])
     return nextPaymentDate.toLocaleString('default', { month: 'long', year: 'numeric' });
 };
 
-// Generates the unique 3-digit suffix for a participant
 export const getParticipantSuffix = (participant: Participant, allParticipants: Participant[]): string => {
   if (participant.relationship === 'Self') {
     return '000';
   }
 
-  // Sort by ID to ensure a stable order
   const ofSameType = allParticipants
     .filter(p => p.relationship === participant.relationship)
     .sort((a, b) => a.id - b.id);
-  
+
   const index = ofSameType.findIndex((p) => p.id === participant.id);
 
   if (index === -1) return 'N/A';
@@ -111,7 +115,12 @@ export const getParticipantSuffix = (participant: Participant, allParticipants: 
     case 'Spouse':
       return (101 + index).toString();
     case 'Child':
+    case 'Stepchild':
+    case 'Grandchild':
+    case 'Sibling':
       return (201 + index).toString();
+    case 'Grandparent':
+      return (401 + index).toString();
     case 'Other Dependent':
       return (301 + index).toString();
     default:

@@ -323,7 +323,11 @@ const NewPolicyPage: React.FC = () => {
                                         <FormInput label="Surname" name="surname" value={p.surname || ''} onChange={e => handleParticipantChange(index, e)} required />
                                         <FormSelect label="Relationship" name="relationship" value={p.relationship} onChange={e => handleParticipantChange(index, e)} required>
                                             <option value="Spouse">Spouse</option>
-                                            <option value="Child">Child</option>
+                                            <option value="Child">Child (Biological)</option>
+                                            <option value="Stepchild">Stepchild</option>
+                                            <option value="Grandchild">Grandchild</option>
+                                            <option value="Sibling">Sibling</option>
+                                            <option value="Grandparent">Grandparent</option>
                                             <option value="Other Dependent">Other Dependent</option>
                                         </FormSelect>
                                         <FormInput label="Date of Birth" name="dateOfBirth" type="date" value={p.dateOfBirth || ''} onChange={e => handleParticipantChange(index, e)} required />
@@ -337,6 +341,20 @@ const NewPolicyPage: React.FC = () => {
                                         <FormInput label="Street Address" name="streetAddress" value={p.streetAddress || ''} onChange={e => handleParticipantChange(index, e)} className="md:col-span-2" />
                                         <FormInput label="Town/City" name="town" value={p.town || ''} onChange={e => handleParticipantChange(index, e)} />
                                         <FormInput label="Postal Address" name="postalAddress" value={p.postalAddress || ''} onChange={e => handleParticipantChange(index, e)} />
+                                        {['Child', 'Stepchild', 'Grandchild', 'Sibling'].includes(p.relationship) && (
+                                            <div className="md:col-span-2">
+                                                <label className="flex items-center space-x-2">
+                                                    <input
+                                                        type="checkbox"
+                                                        name="isStudent"
+                                                        checked={p.isStudent || false}
+                                                        onChange={e => handleParticipantChange(index, { target: { name: 'isStudent', value: e.target.checked } } as any)}
+                                                        className="rounded border-gray-300"
+                                                    />
+                                                    <span className="text-sm text-brand-text-secondary">Is currently a student (ages 19-23 require school ID)</span>
+                                                </label>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -32,7 +32,9 @@ export const FUNERAL_PACKAGE_DETAILS: Record<string, { description: string; bene
         ],
         rules: [
             "Family package price: $5.00 per month",
-            "Covers: Member, Spouse, and up to 4 Biological Children"
+            "Covers: Member, Spouse, and up to 4 children (biological/step/grand/siblings)",
+            "Children covered up to age 18 (or 23 if student with school ID)",
+            "Dependents above 64 years: +$2.50 per person"
         ]
     },
     [FuneralPackage.STANDARD]: {
@@ -47,7 +49,9 @@ export const FUNERAL_PACKAGE_DETAILS: Record<string, { description: string; bene
         ],
         rules: [
             "Family package price: $8.00 per month",
-            "Covers: Member, Spouse, and up to 4 Biological Children"
+            "Covers: Member, Spouse, and up to 4 children (biological/step/grand/siblings)",
+            "Children covered up to age 18 (or 23 if student with school ID)",
+            "Dependents above 64 years: +$2.50 per person"
         ]
     },
     [FuneralPackage.PREMIUM]: {
@@ -62,7 +66,9 @@ export const FUNERAL_PACKAGE_DETAILS: Record<string, { description: string; bene
         ],
         rules: [
             "Family package price: $15.00 per month",
-            "Covers: Member, Spouse, and up to 4 Biological Children"
+            "Covers: Member, Spouse, and up to 4 children (biological/step/grand/siblings)",
+            "Children covered up to age 18 (or 23 if student with school ID)",
+            "No additional charge for dependents above 64 years"
         ]
     }
 };

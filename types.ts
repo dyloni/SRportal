@@ -87,7 +87,7 @@ export interface Participant {
     uuid: string;
     firstName: string;
     surname: string;
-    relationship: 'Self' | 'Spouse' | 'Child' | 'Other Dependent';
+    relationship: 'Self' | 'Spouse' | 'Child' | 'Stepchild' | 'Grandchild' | 'Sibling' | 'Grandparent' | 'Other Dependent';
     dateOfBirth: string;
     idNumber?: string;
     gender?: 'Male' | 'Female';

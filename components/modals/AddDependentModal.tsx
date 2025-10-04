@@ -79,6 +79,10 @@ const AddDependentModal: React.FC<AddDependentModalProps> = ({ customer, onClose
                         <FormSelect name="relationship" value={participant.relationship} onChange={handleChange} required>
                             <option>Spouse</option>
                             <option>Child</option>
+                            <option>Stepchild</option>
+                            <option>Grandchild</option>
+                            <option>Sibling</option>
+                            <option>Grandparent</option>
                             <option>Other Dependent</option>
                         </FormSelect>
                     </div>
@@ -86,6 +90,20 @@ const AddDependentModal: React.FC<AddDependentModalProps> = ({ customer, onClose
                         <label className="block text-base font-semibold text-brand-text-secondary mb-2">Date of Birth</label>
                         <FormInput name="dateOfBirth" type="date" value={participant.dateOfBirth} onChange={handleChange} required />
                     </div>
+                    {['Child', 'Stepchild', 'Grandchild', 'Sibling'].includes(participant.relationship) && (
+                        <div className="col-span-2">
+                            <label className="flex items-center space-x-2">
+                                <input
+                                    type="checkbox"
+                                    name="isStudent"
+                                    checked={participant.isStudent || false}
+                                    onChange={e => handleChange({ target: { name: 'isStudent', value: e.target.checked } } as any)}
+                                    className="rounded border-gray-300"
+                                />
+                                <span className="text-sm text-brand-text-secondary">Is currently a student (ages 19-23 require school ID)</span>
+                            </label>
+                        </div>
+                    )}
                 </div>
                 <div className="flex flex-col-reverse sm:flex-row sm:justify-end pt-4 mt-6 space-y-2 space-y-reverse sm:space-y-0 sm:space-x-3">
                     <Button variant="secondary" type="button" onClick={onClose} className="w-full sm:w-auto">Cancel</Button>
