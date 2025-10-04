@@ -11,6 +11,7 @@ import { calculatePremiumComponents } from '../../utils/policyHelpers';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { supabase } from '../../utils/supabase';
+import CameraCapture from '../../components/ui/CameraCapture';
 
 // Reusing form component style from other modals/pages
 const FormInput: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: string }> = ({ label, ...props }) => (
@@ -51,6 +52,11 @@ const NewPolicyPage: React.FC = () => {
         receiptFilename: '',
         idPhotoFilename: '',
     });
+
+    const [idPhotoData, setIdPhotoData] = useState<string | null>(null);
+    const [receiptPhotoData, setReceiptPhotoData] = useState<string | null>(null);
+    const [showIdCamera, setShowIdCamera] = useState(false);
+    const [showReceiptCamera, setShowReceiptCamera] = useState(false);
 
     // Sync policyholder details with the 'Self' participant
     useEffect(() => {
@@ -135,6 +141,18 @@ const NewPolicyPage: React.FC = () => {
             newParticipants[index] = participantToUpdate;
             return { ...prev, participants: newParticipants };
         });
+    };
+
+    const handleIdPhotoCapture = (imageData: string) => {
+        setIdPhotoData(imageData);
+        const timestamp = Date.now();
+        setFormData(prev => ({ ...prev, idPhotoFilename: `id_photo_${timestamp}.jpg` }));
+    };
+
+    const handleReceiptCapture = (imageData: string) => {
+        setReceiptPhotoData(imageData);
+        const timestamp = Date.now();
+        setFormData(prev => ({ ...prev, receiptFilename: `receipt_${timestamp}.jpg` }));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -369,13 +387,53 @@ const NewPolicyPage: React.FC = () => {
                             {Object.values(PaymentMethod).map(p => <option key={p} value={p}>{p}</option>)}
                         </FormSelect>
                     </div>
-                     <FormInput label="Payment Receipt Filename/Ref" name="receiptFilename" value={formData.receiptFilename} onChange={handleChange} required />
-                     <FormInput label="Policyholder ID Photo Filename" name="idPhotoFilename" value={formData.idPhotoFilename} onChange={handleChange} required className="md:col-span-2" />
+                    <div className="md:col-span-2">
+                        <label className="block text-base font-semibold text-brand-text-secondary mb-2">Payment Receipt</label>
+                        {receiptPhotoData ? (
+                            <div className="relative">
+                                <img src={receiptPhotoData} alt="Receipt" className="w-full max-w-md h-auto rounded-lg border border-brand-border" />
+                                <div className="flex gap-2 mt-2">
+                                    <Button type="button" variant="secondary" onClick={() => setShowReceiptCamera(true)}>
+                                        Retake Receipt
+                                    </Button>
+                                    <Button type="button" variant="secondary" onClick={() => { setReceiptPhotoData(null); setFormData(prev => ({ ...prev, receiptFilename: '' })); }}>
+                                        Remove
+                                    </Button>
+                                </div>
+                                <input type="hidden" name="receiptFilename" value={formData.receiptFilename} required />
+                            </div>
+                        ) : (
+                            <Button type="button" onClick={() => setShowReceiptCamera(true)} className="w-full">
+                                📷 Capture Receipt Photo
+                            </Button>
+                        )}
+                    </div>
+                    <div className="md:col-span-2">
+                        <label className="block text-base font-semibold text-brand-text-secondary mb-2">Policyholder ID Photo</label>
+                        {idPhotoData ? (
+                            <div className="relative">
+                                <img src={idPhotoData} alt="ID Photo" className="w-full max-w-md h-auto rounded-lg border border-brand-border" />
+                                <div className="flex gap-2 mt-2">
+                                    <Button type="button" variant="secondary" onClick={() => setShowIdCamera(true)}>
+                                        Retake ID Photo
+                                    </Button>
+                                    <Button type="button" variant="secondary" onClick={() => { setIdPhotoData(null); setFormData(prev => ({ ...prev, idPhotoFilename: '' })); }}>
+                                        Remove
+                                    </Button>
+                                </div>
+                                <input type="hidden" name="idPhotoFilename" value={formData.idPhotoFilename} required />
+                            </div>
+                        ) : (
+                            <Button type="button" onClick={() => setShowIdCamera(true)} className="w-full">
+                                📷 Capture ID Photo
+                            </Button>
+                        )}
+                    </div>
                 </div>
             </Card>
 
             <div className="flex justify-end pt-4">
-                <Button type="submit" className="w-full md:w-auto" disabled={premiumComponents.totalPremium <= 0}>
+                <Button type="submit" className="w-full md:w-auto" disabled={premiumComponents.totalPremium <= 0 || !idPhotoData || !receiptPhotoData}>
                     Create Policy
                 </Button>
             </div>
@@ -386,6 +444,22 @@ const NewPolicyPage: React.FC = () => {
                     <span className="text-xs opacity-90">/ month</span>
                 </div>
             </div>
+
+            {showIdCamera && (
+                <CameraCapture
+                    title="Capture ID Photo"
+                    onCapture={handleIdPhotoCapture}
+                    onClose={() => setShowIdCamera(false)}
+                />
+            )}
+
+            {showReceiptCamera && (
+                <CameraCapture
+                    title="Capture Payment Receipt"
+                    onCapture={handleReceiptCapture}
+                    onClose={() => setShowReceiptCamera(false)}
+                />
+            )}
         </form>
     );
 };
