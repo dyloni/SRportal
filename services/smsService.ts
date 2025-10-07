@@ -1,6 +1,5 @@
-const BLUEDOT_API_URL = 'https://rest.bluedotsms.com/api';
-const API_ID = import.meta.env.VITE_BLUEDOT_API_ID;
-const API_PASSWORD = import.meta.env.VITE_BLUEDOT_API_PASSWORD;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export interface SMSPayload {
   api_id: string;
@@ -47,39 +46,42 @@ export const sendSMS = async (
   smsType: 'P' | 'T' = 'T',
   encoding: 'T' | 'U' | 'FS' | 'UFS' = 'T'
 ): Promise<SMSResponse> => {
-  const payload: SMSPayload = {
-    api_id: API_ID,
-    api_password: API_PASSWORD,
-    sms_type: smsType,
-    encoding: encoding,
-    sender_id: senderId,
-    phonenumber: phoneNumber,
-    textmessage: message,
-    templateid: null,
-    V1: null,
-    V2: null,
-    V3: null,
-    V4: null,
-    V5: null,
+  const payload = {
+    phoneNumber,
+    message,
+    senderId,
+    smsType,
+    encoding,
   };
 
+  console.log('Sending SMS via edge function:', { phoneNumber, senderId, smsType });
+
   try {
-    const response = await fetch(`${BLUEDOT_API_URL}/SendSMS`, {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/send-sms`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
       },
       body: JSON.stringify(payload),
     });
 
+    console.log('Response status:', response.status);
+
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Error response:', errorText);
+      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
     }
 
     const data: SMSResponse = await response.json();
+    console.log('SMS Response:', data);
     return data;
   } catch (error) {
     console.error('Error sending SMS:', error);
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error('Network error: Unable to connect to SMS service. Please check your internet connection or try again later.');
+    }
     throw error;
   }
 };
@@ -128,8 +130,13 @@ export const sendBulkSMS = async (
 
 export const getDeliveryStatus = async (messageId: number): Promise<DeliveryStatusResponse> => {
   try {
-    const response = await fetch(`${BLUEDOT_API_URL}/GetDeliveryStatus?message_id=${messageId}`, {
-      method: 'GET',
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/get-sms-status`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ messageId }),
     });
 
     if (!response.ok) {
@@ -146,12 +153,13 @@ export const getDeliveryStatus = async (messageId: number): Promise<DeliveryStat
 
 export const checkBalance = async (): Promise<{ BalanceAmount: number; CurrenceCode: string }> => {
   try {
-    const response = await fetch(
-      `${BLUEDOT_API_URL}/CheckBalance?api_id=${API_ID}&api_password=${API_PASSWORD}`,
-      {
-        method: 'GET',
-      }
-    );
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/check-sms-balance`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+    });
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
