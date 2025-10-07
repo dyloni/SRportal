@@ -6,6 +6,8 @@ import TimePeriodSelector from '../../components/analytics/TimePeriodSelector';
 import AnalyticsCard from '../../components/analytics/AnalyticsCard';
 import { calculateAnalytics, getPeriodLabel, TimePeriod, AnalyticsData } from '../../utils/analyticsHelpers';
 import { RequestType } from '../../types';
+import BulkSMSModal from '../../components/modals/BulkSMSModal';
+import Button from '../../components/ui/Button';
 
 const AdminDashboard: React.FC = () => {
     const { state } = useData();
@@ -24,6 +26,7 @@ const AdminDashboard: React.FC = () => {
         rejectedRequests: 0,
     });
     const [topAgents, setTopAgents] = useState<any[]>([]);
+    const [isSMSModalOpen, setIsSMSModalOpen] = useState(false);
 
     const totalCustomers = state.customers.length;
     const totalAgents = state.agents.length;
@@ -217,9 +220,17 @@ const AdminDashboard: React.FC = () => {
                         <Link to="/customers" className="bg-brand-pink text-white px-6 py-3 rounded-md hover:bg-brand-light-pink font-medium transition-colors">View Customers</Link>
                         <Link to="/agents" className="bg-gray-200 text-brand-text-secondary px-6 py-3 rounded-md hover:bg-gray-300 font-medium transition-colors">Manage Agents</Link>
                         <Link to="/requests" className="bg-gray-200 text-brand-text-secondary px-6 py-3 rounded-md hover:bg-gray-300 font-medium transition-colors">Review Requests</Link>
+                        <Button variant="secondary" onClick={() => setIsSMSModalOpen(true)}>Send Bulk SMS</Button>
                     </div>
                 </Card>
             </div>
+
+            {isSMSModalOpen && (
+                <BulkSMSModal
+                    customers={state.customers}
+                    onClose={() => setIsSMSModalOpen(false)}
+                />
+            )}
         </div>
     );
 };

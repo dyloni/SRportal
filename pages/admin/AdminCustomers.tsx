@@ -7,6 +7,7 @@ import PolicyStatusBadge from '../../components/ui/PolicyStatusBadge';
 import Button from '../../components/ui/Button';
 import { exportCustomersToFile } from '../../utils/csvHelpers';
 import UploadCustomersModal from '../../components/modals/UploadCustomersModal';
+import BulkSMSModal from '../../components/modals/BulkSMSModal';
 import { formatPolicyNumber } from '../../utils/policyHelpers';
 
 
@@ -15,6 +16,7 @@ const AdminCustomers: React.FC = () => {
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+    const [isSMSModalOpen, setIsSMSModalOpen] = useState(false);
 
     const filteredCustomers = useMemo(() => {
         if (!searchTerm) return state.customers;
@@ -40,6 +42,7 @@ const AdminCustomers: React.FC = () => {
                 <h2 className="text-3xl font-extrabold text-brand-text-primary">All Customers</h2>
                 <div className="space-x-2">
                     <Button variant="secondary" onClick={() => setIsUploadModalOpen(true)}>Import Customers</Button>
+                    <Button variant="secondary" onClick={() => setIsSMSModalOpen(true)}>Send Bulk SMS</Button>
                     <Button onClick={() => handleExport('xlsx')}>Export to Excel</Button>
                 </div>
             </div>
@@ -91,6 +94,12 @@ const AdminCustomers: React.FC = () => {
                 <UploadCustomersModal
                     onClose={() => setIsUploadModalOpen(false)}
                     onUploadSuccess={handleUploadSuccess}
+                />
+            )}
+            {isSMSModalOpen && (
+                <BulkSMSModal
+                    customers={state.customers}
+                    onClose={() => setIsSMSModalOpen(false)}
                 />
             )}
         </div>
