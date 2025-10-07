@@ -27,7 +27,7 @@ const BulkSMSModal: React.FC<BulkSMSModalProps> = ({ customers, onClose }) => {
     return customers.filter(
       (c) =>
         `${c.firstName} ${c.surname}`.toLowerCase().includes(lowercased) ||
-        c.phoneNumber.toLowerCase().includes(lowercased)
+        (c.phone && c.phone.toLowerCase().includes(lowercased))
     );
   }, [customers, searchTerm]);
 
@@ -42,10 +42,14 @@ const BulkSMSModal: React.FC<BulkSMSModalProps> = ({ customers, onClose }) => {
   };
 
   const toggleAll = () => {
-    if (selectedCustomers.size === filteredCustomers.length) {
+    const customersWithPhones = filteredCustomers.filter(
+      (c) => c.phone && c.phone.trim() !== ''
+    );
+
+    if (selectedCustomers.size === customersWithPhones.length) {
       setSelectedCustomers(new Set());
     } else {
-      setSelectedCustomers(new Set(filteredCustomers.map((c) => c.id)));
+      setSelectedCustomers(new Set(customersWithPhones.map((c) => c.id)));
     }
   };
 
@@ -65,13 +69,24 @@ const BulkSMSModal: React.FC<BulkSMSModalProps> = ({ customers, onClose }) => {
 
     try {
       const selectedCustomersList = customers.filter((c) => selectedCustomers.has(c.id));
-      const phoneNumbers = selectedCustomersList.map((c) => {
-        let phone = c.phoneNumber.replace(/\D/g, '');
-        if (phone.startsWith('0')) {
-          phone = '263' + phone.substring(1);
-        }
-        return phone;
-      });
+
+      const phoneNumbers = selectedCustomersList
+        .filter((c) => c.phone && c.phone.trim() !== '')
+        .map((c) => {
+          let phone = c.phone.replace(/\D/g, '');
+          if (phone.startsWith('0')) {
+            phone = '263' + phone.substring(1);
+          } else if (!phone.startsWith('263')) {
+            phone = '263' + phone;
+          }
+          return phone;
+        });
+
+      if (phoneNumbers.length === 0) {
+        alert('None of the selected customers have valid phone numbers');
+        setIsSending(false);
+        return;
+      }
 
       const result = await sendBulkSMS(phoneNumbers, message, senderId, smsType);
       setSendResult(result);
@@ -203,25 +218,33 @@ const BulkSMSModal: React.FC<BulkSMSModalProps> = ({ customers, onClose }) => {
                 />
 
                 <div className="border border-gray-300 rounded-lg max-h-64 overflow-y-auto">
-                  {filteredCustomers.map((customer) => (
-                    <div
-                      key={customer.id}
-                      className="flex items-center p-3 hover:bg-gray-50 border-b last:border-b-0"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedCustomers.has(customer.id)}
-                        onChange={() => toggleCustomer(customer.id)}
-                        className="mr-3"
-                      />
-                      <div className="flex-1">
-                        <p className="font-medium text-brand-text-primary">
-                          {customer.firstName} {customer.surname}
-                        </p>
-                        <p className="text-sm text-gray-500">{customer.phoneNumber}</p>
+                  {filteredCustomers.map((customer) => {
+                    const hasValidPhone = customer.phone && customer.phone.trim() !== '';
+                    return (
+                      <div
+                        key={customer.id}
+                        className={`flex items-center p-3 hover:bg-gray-50 border-b last:border-b-0 ${
+                          !hasValidPhone ? 'opacity-50' : ''
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedCustomers.has(customer.id)}
+                          onChange={() => toggleCustomer(customer.id)}
+                          className="mr-3"
+                          disabled={!hasValidPhone}
+                        />
+                        <div className="flex-1">
+                          <p className="font-medium text-brand-text-primary">
+                            {customer.firstName} {customer.surname}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {hasValidPhone ? customer.phone : 'No phone number'}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>
